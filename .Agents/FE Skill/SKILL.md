@@ -18,7 +18,6 @@ Lo scopo di questo script Python da lanciare sulle workstation locali è uniform
 ### 1.1 Configurazione Target
 *   *Target FPS:* $6 \text{ fps}$ (valore vincolante per garantire coerenza temporale al modello a valle).
 *   *Formato Salvataggio:* JPEG compresso (es. qualità 85).
-*   *Resize Spaziale (Soft-resize):* Mantenere l'aspetto originario (Aspect Ratio 16:9). Ridurre l'asse più lungo (solitamente la larghezza) a un massimo di $1280 \text{ pixel}$ per evitare file inutilmente pesanti, senza compromettere la precisione necessaria per successivi ritagli dei POI (Punti di Interesse). *Non forzare il resize a $224 \times 224$ in questa fase.*
 
 ### 1.2 Algoritmo di Sottocampionamento Dinamico
 Non deve essere utilizzato un intervallo fisso (es. "prendi 1 frame ogni 5"). Lo script deve leggere dinamicamente il framerate nativo di ciascun video (⁠ cv2.CAP_PROP_FPS ⁠) e calcolare l'intervallo teorico per quel specifico video:
@@ -31,6 +30,8 @@ Il codice manterrà un contatore a virgola mobile (⁠ next_target_frame ⁠
 I frame estratti *DEVONO* essere nominati conservando rigorosamente il loro *Indice (ID) di frame originale* all'interno del video.
 *   Errato: ⁠ video_01_frame_1.jpg ⁠, ⁠ video_01_frame_2.jpg ⁠ (Il subsampling distrugge l'indice, rompendo il legame col file CSV).
 *   Corretto: ⁠ frame_000000.jpg ⁠, ⁠ frame_000005.jpg ⁠, ⁠ frame_000010.jpg ⁠ (L'ID nel nome corrisponde esattamente all'ID originale nel file CSV annotato).
+
+**L'intero output di questa fase (Dataset Small) dovrà essere salvato in una cartella a parte, senza distruggere il dataset originale**
 
 ---
 
