@@ -24,9 +24,9 @@ def process_dataset(input_dir, output_dir, original_fps=24.0, target_fps=6.0, qu
     print(f"Trovate {len(sequences)} sequenze (cartelle) da elaborare.")
     
     for seq_dir, frames in sequences.items():
-        # Ordina i frame usando il numero nel nome file (es. frame000005.jpg -> 5)
+        # Ordina i frame usando il numero nel nome file (es. frame000005.jpg -> 5 oppure 003087.jpg -> 3087)
         def get_frame_id(f):
-            match = re.search(r'frame(\d+)\.jpg', f.name)
+            match = re.search(r'(?:frame)?(\d+)\.jpg', f.name)
             return int(match.group(1)) if match else -1
             
         # Filtra i file che non seguono il pattern
@@ -73,13 +73,13 @@ def process_dataset(input_dir, output_dir, original_fps=24.0, target_fps=6.0, qu
 if __name__ == "__main__":
     import sys
     
-    input_directory = "Dataset_Monastero"
-    output_directory = "Dataset_Monastero_Small"
+    input_directory = sys.argv[1] if len(sys.argv) > 1 else "Dataset_Monastero"
+    output_directory = sys.argv[2] if len(sys.argv) > 2 else "Dataset_Monastero_Small"
     
     if not os.path.exists(input_directory):
         print(f"Errore: La directory di input {input_directory} non esiste!")
         sys.exit(1)
         
-    print(f"Inizio elaborazione. FPS originali: 24.0, FPS Target: 6.0")
+    print(f"Inizio elaborazione per: {input_directory}")
     process_dataset(input_directory, output_directory, original_fps=24.0, target_fps=6.0, quality=85)
     print("Elaborazione completata!")
