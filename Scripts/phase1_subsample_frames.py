@@ -75,11 +75,16 @@ if __name__ == "__main__":
     
     input_directory = sys.argv[1] if len(sys.argv) > 1 else "Dataset_Monastero"
     output_directory = sys.argv[2] if len(sys.argv) > 2 else "Dataset_Monastero_Small"
+    original_fps = float(sys.argv[3]) if len(sys.argv) > 3 else 24.0 
+    target_fps = float(sys.argv[4]) if len(sys.argv) > 4 else 6.0
+
+    # 29.97fps Bellomo, 24fps Monastero
     
     if not os.path.exists(input_directory):
         print(f"Errore: La directory di input {input_directory} non esiste!")
         sys.exit(1)
         
     print(f"Inizio elaborazione per: {input_directory}")
-    process_dataset(input_directory, output_directory, original_fps=24.0, target_fps=6.0, quality=85)
+    print(f"Impostazioni: original_fps={original_fps}, target_fps={target_fps}")
+    process_dataset(input_directory, output_directory, original_fps=original_fps, target_fps=target_fps, quality=85)
     print("Elaborazione completata!")
