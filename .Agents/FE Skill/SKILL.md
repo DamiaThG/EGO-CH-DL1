@@ -28,8 +28,8 @@ Il codice manterrà un contatore a virgola mobile (⁠ next_target_frame ⁠
 
 ### 1.3 Regola Aurea del Nomenclatore (Critico per le Annotazioni)
 I frame estratti *DEVONO* essere nominati conservando rigorosamente il loro *Indice (ID) di frame originale* all'interno del video.
-*   Errato: ⁠ video_01_frame_1.jpg ⁠, ⁠ video_01_frame_2.jpg ⁠ (Il subsampling distrugge l'indice, rompendo il legame col file CSV).
-*   Corretto: ⁠ frame_000000.jpg ⁠, ⁠ frame_000005.jpg ⁠, ⁠ frame_000010.jpg ⁠ (L'ID nel nome corrisponde esattamente all'ID originale nel file CSV annotato).
+*   Errato: `video_01_frame_1.jpg`, `video_01_frame_2.jpg` (Il subsampling distrugge l'indice).
+*   Corretto: `00001.jpg`, `00006.jpg` (L'ID nel nome corrisponde all'ID originale. *Nota bene*: nelle annotazioni VIA i frame sono spesso chiamati `frame000001.jpg`, quindi il codice di Fase 2 dovrà gestire questa mappatura del prefisso).
 
 **L'intero output di questa fase (Dataset Small) dovrà essere salvato in una cartella a parte, senza distruggere il dataset originale**
 
@@ -47,10 +47,10 @@ Questa fase prenderà in input l'output della Fase 1 (i JPEG alleggeriti) carica
 
 ### 2.2 Sincronizzazione e Annotazioni
 Il codice dovrà iterare sui file JPEG del dataset filtrato (Fase 1). Per ogni file:
-1.  Leggere l'immagine (es. ⁠ frame_000005.jpg ⁠).
-2.  Estrarre l'ID del frame dal nome del file (es. l'intero ⁠ 5 ⁠).
-3.  Consultare il file CSV delle annotazioni corrispondente al video in elaborazione.
-4.  Cercare la riga dove ⁠ frame_id == 5 ⁠ o il timestamp equivalente, per recuperare le label (Ambiente, POI, Bounding Box originali, da ri-scalare in base al soft-resize di Fase 1).
+1.  Leggere l'immagine (es. `00005.jpg`).
+2.  Estrarre l'ID del frame dal nome del file (es. l'intero 5) e ricostruire il nome atteso nelle annotazioni (es. `frame000005.jpg`).
+3.  Consultare il file testuale riassuntivo (formato VIA) dentro la cartella `bbox_annotations/` corrispondente al video in elaborazione (anziché un classico CSV, si tratta di file `.txt` separati da spazio con attributi JSON per ogni frame).
+4.  Cercare la riga corrispondente al nome del frame per recuperare le label semantiche (es. `"Label":"1.1288.49"`) da decodificare in ID Ambiente e POI, e le Bounding Box originali assolute in pixel, da ri-scalare in base al soft-resize di Fase 1.
 
 ### 2.3 Trasformazioni Spaziali e Inferenza Offline
 1.  Applicare il crop/resize finale richiesto dalla backbone ($224 \times 224$ o simili).
@@ -70,3 +70,11 @@ Lo script genererà un singolo file di output (es. ⁠ video_01_features.pt 
     "bboxes": Tensor_2D,          # Forma: [N_Frame_Estratti, 4] (BBox ricalcolate)
     "frame_ids": Tensor_1D        # Forma: [N_Frame_Estratti] (Gli ID originali, per debug)
 }
+```
+
+### 2.5 Metadati e Mapping delle Classi
+La pipeline deve essere consapevole del dataset in elaborazione per mappare le label semantiche in tensori utilizzabili per il training in PyTorch (interi `0-indexed`):
+*   **Palazzo Bellomo:** 22 Ambienti (valori validi: `0-21`) e 191 POI (valori validi: `0-190`). Le stringhe estratte (es. `"1.1288.49"`) dovranno essere mappate correttamente su questo dizionario.
+*   **Monastero dei Benedettini:** 4 Ambienti (valori validi: `0-3`) e 35 POI (valori validi: `0-34`).
+
+Il codice della Fase 2 dovrà implementare un parser/dizionario che, leggendo l'annotazione grezza, restituisca l'intero corretto rispettando questi metadati ufficiali.
