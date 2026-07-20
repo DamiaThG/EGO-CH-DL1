@@ -40,10 +40,10 @@ I frame estratti *DEVONO* essere nominati conservando rigorosamente il loro *Ind
 Questa fase prenderà in input l'output della Fase 1 (i JPEG alleggeriti) caricato sul cluster e genererà i tensori finali ⁠ .pt ⁠ (PyTorch).
 
 ### 2.1 Configurazione della Backbone
-*   *Modello (Esempio):* ⁠ convnext_tiny ⁠ (da ⁠ torchvision.models ⁠).
-*   *Pesi:* Pre-addestrati su ImageNet-1K (⁠ ConvNeXt_Tiny_Weights.IMAGENET1K_V1 ⁠).
-*   *Modifica Topologica:* Rimuovere il classificatore finale (⁠ nn.Linear ⁠ di output). In ConvNeXt, modificare l'attributo ⁠ classifier ⁠ per fermarsi prima del layer lineare, in modo che restituisca l'embedding puro di dimensione 768.
-*   *Stato:* Modalità ⁠ eval() ⁠, gradienti disattivati (⁠ requires_grad=False ⁠).
+*   *Modello:* `dinov2_vits14` (caricato tramite `torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')`).
+*   *Pesi:* Pre-addestrati in modalità self-supervised (forniti da Meta).
+*   *Modifica Topologica:* Non necessaria. DINOv2 restituisce nativamente l'embedding puro di dimensione 384 senza alcun livello di classificazione in coda.
+*   *Stato:* Modalità `eval()`, gradienti disattivati (`requires_grad=False`).
 
 ### 2.2 Sincronizzazione e Annotazioni
 Il codice dovrà iterare sui file JPEG del dataset filtrato (Fase 1). Per ogni file:
@@ -55,8 +55,8 @@ Il codice dovrà iterare sui file JPEG del dataset filtrato (Fase 1). Per ogni f
 ### 2.3 Trasformazioni Spaziali e Inferenza Offline
 1.  Applicare il crop/resize finale richiesto dalla backbone ($224 \times 224$ o simili).
 2.  Passare il tensore dell'immagine (forma ⁠ [1, 3, 224, 224] ⁠) alla backbone.
-3.  Ottenere l'embedding $Z$ di forma ⁠ [1, 768] ⁠.
-4.  Rimuovere la dimensione batch: ⁠ Z = Z.squeeze(0) ⁠ ottenendo un vettore 1D.
+3.  Ottenere l'embedding $Z$ di forma `[1, 384]`.
+4.  Rimuovere la dimensione batch: `Z = Z.squeeze(0)` ottenendo un vettore 1D.
 
 ### 2.4 Output (Pacchettizzazione)
 Lo script genererà un singolo file di output (es. ⁠ video_01_features.pt ⁠) contenente un dizionario PyTorch con le liste di dati sincronizzate:
@@ -64,7 +64,7 @@ Lo script genererà un singolo file di output (es. ⁠ video_01_features.pt 
 ```python
 {
     "video_id": "video_01",
-    "features": Tensor_2D,        # Forma: [N_Frame_Estratti, 768]
+    "features": Tensor_2D,        # Forma: [N_Frame_Estratti, 384]
     "room_labels": Tensor_1D,     # Forma: [N_Frame_Estratti] (ID Ambienti)
     "poi_labels": Tensor_1D,      # Forma: [N_Frame_Estratti] (ID POI)
     "bboxes": Tensor_2D,          # Forma: [N_Frame_Estratti, 4] (BBox ricalcolate)
