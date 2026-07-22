@@ -31,6 +31,7 @@ for d_model in "${MODELS[@]}"; do
                 --d_model $d_model \
                 --num_layers $l \
                 --lr $lr \
+                --batch_size 2 \
                 --epochs 50 \
                 --run_name $RUN_NAME
         done
@@ -50,6 +51,7 @@ for d_model in "${MODELS[@]}"; do
                 --d_model $d_model \
                 --num_layers $l \
                 --lr $lr \
+                --batch_size 2 \
                 --epochs 50 \
                 --run_name $RUN_NAME
         done
