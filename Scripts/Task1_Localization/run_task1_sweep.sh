@@ -9,8 +9,8 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 cd "$(dirname "$0")/../.."
 
 # Configurazioni da esplorare
-MODELS=(128 256)
-LAYERS=(2 4)
+MODELS=(128 256 512)
+LAYERS=(2 4 6)
 LEARNING_RATES=(1e-3 5e-4)
 
 echo "========================================================="
