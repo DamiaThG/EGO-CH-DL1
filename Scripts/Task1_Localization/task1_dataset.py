@@ -164,18 +164,25 @@ def get_dataloaders(
     if len(all_files) == 0:
         raise FileNotFoundError(f"Nessun file .pt in {features_dir}")
 
-    # Shuffle riproducibile
-    rng = random.Random(seed)
-    shuffled = all_files.copy()
-    rng.shuffle(shuffled)
-
-    n_val = max(1, int(len(shuffled) * val_split))
-    val_files = shuffled[:n_val]
-    train_files = shuffled[n_val:]
+    # Cerca esplicitamente un file di validazione
+    val_candidate = next((f for f in all_files if "validation" in f.lower()), None)
+    
+    if val_candidate is not None:
+        print(f"[get_dataloaders] Trovato file di validazione esplicito: {val_candidate}")
+        val_files = [val_candidate]
+        train_files = [f for f in all_files if f != val_candidate]
+    else:
+        # Fallback allo split random
+        rng = random.Random(seed)
+        shuffled = all_files.copy()
+        rng.shuffle(shuffled)
+        n_val = max(1, int(len(shuffled) * val_split))
+        val_files = shuffled[:n_val]
+        train_files = shuffled[n_val:]
 
     print(
         f"[get_dataloaders] Split → Train: {len(train_files)} | Val: {len(val_files)} "
-        f"(val_split={val_split}, seed={seed})"
+        f"(seed={seed})"
     )
 
     train_ds = Task1FeatureDataset(features_dir, file_list=train_files)

@@ -6,6 +6,7 @@
 export WANDB_MODE=offline
 export PYTHONUNBUFFERED=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export PYTHONPATH=$(pwd):$PYTHONPATH
 
 # Porta la shell alla root del progetto
 cd "$(dirname "$0")/../.."
@@ -16,7 +17,7 @@ echo "======================================"
 
 # ---- BELLOMO ----
 python Scripts/Task1_Localization/task1_train.py \
-    --features_dir data/Task1_Features/Bellomo \
+    --features_dir data/Task1_Features/Bellomo_Features \
     --model mamba \
     --d_model 256 \
     --num_layers 4 \
@@ -34,7 +35,7 @@ echo "======================================"
 
 # ---- MONASTERO ----
 python Scripts/Task1_Localization/task1_train.py \
-    --features_dir data/Task1_Features/Monastero \
+    --features_dir data/Task1_Features/Monastero_Features \
     --model mamba \
     --d_model 256 \
     --num_layers 4 \

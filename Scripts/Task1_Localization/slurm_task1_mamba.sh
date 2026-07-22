@@ -7,7 +7,7 @@
 #SBATCH --qos=gpu-xlarge
 #SBATCH --nodelist=gnode10
 #SBATCH --gres=gpu:1
-#SBATCH --gres=shard:22000
+#SBATCH --gres=shard:40000
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
 #SBATCH --time=12:00:00
@@ -20,4 +20,4 @@ apptainer exec --nv \
     --bind $(pwd):/workspace \
     --pwd /workspace \
     /shared/sifs/latest.sif \
-    bash /workspace/Scripts/Task1_Localization/run_task1_train_mamba.sh
+    bash /workspace/Scripts/Task1_Localization/run_task1_sweep.sh

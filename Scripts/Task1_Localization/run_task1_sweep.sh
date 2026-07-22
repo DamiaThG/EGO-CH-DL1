@@ -5,6 +5,7 @@
 export WANDB_MODE=offline
 export PYTHONUNBUFFERED=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export PYTHONPATH=$(pwd):$PYTHONPATH
 
 cd "$(dirname "$0")/../.."
 
@@ -25,7 +26,7 @@ for d_model in "${MODELS[@]}"; do
             echo "--- Training Bellomo: $RUN_NAME ---"
             
             python Scripts/Task1_Localization/task1_train.py \
-                --features_dir data/Task1_Features/Bellomo \
+                --features_dir data/Task1_Features/Bellomo_Features \
                 --model mamba \
                 --d_model $d_model \
                 --num_layers $l \
@@ -44,7 +45,7 @@ for d_model in "${MODELS[@]}"; do
             echo "--- Training Monastero: $RUN_NAME ---"
             
             python Scripts/Task1_Localization/task1_train.py \
-                --features_dir data/Task1_Features/Monastero \
+                --features_dir data/Task1_Features/Monastero_Features \
                 --model mamba \
                 --d_model $d_model \
                 --num_layers $l \
