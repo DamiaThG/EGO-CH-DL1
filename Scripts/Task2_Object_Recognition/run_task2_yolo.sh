@@ -20,13 +20,24 @@ echo "Nodo assegnato: $SLURMD_NODENAME"
 echo "Data: $(date)"
 echo "============================================="
 
-# Esegui lo script python all'interno del container di sistema
-# NOTA: Usiamo /shared/sifs/latest.sif come indicato negli alias del corso
-apptainer exec --nv /shared/sifs/latest.sif python Scripts/Task2_Object_Recognition/task2_train_yolo.py \
-    --data data/yolo_dataset/dataset.yaml \
-    --weights yolov8n.pt \
-    --epochs 100 \
-    --batch 32
+# Controllo se siamo già dentro Apptainer
+if [ -n "$APPTAINER_NAME" ] || [ -n "$SINGULARITY_NAME" ]; then
+    echo "Rilevato ambiente Apptainer. Avvio diretto di Python..."
+    python Scripts/Task2_Object_Recognition/task2_train_yolo.py \
+        --data data/yolo_dataset/dataset.yaml \
+        --weights yolov8x.pt \
+        --epochs 300 \
+        --batch 16 \
+        --name task2_poi_xlarge
+else
+    echo "Avvio tramite Apptainer exec..."
+    apptainer exec --nv /shared/sifs/latest.sif python Scripts/Task2_Object_Recognition/task2_train_yolo.py \
+        --data data/yolo_dataset/dataset.yaml \
+        --weights yolov8x.pt \
+        --epochs 300 \
+        --batch 16 \
+        --name task2_poi_xlarge
+fi
 
 echo "============================================="
 echo "Job terminato!"

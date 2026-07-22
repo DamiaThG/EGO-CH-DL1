@@ -30,3 +30,7 @@ Scripts/Task1_Localization/Bellomo_Features
 Scripts/Task1_Localization/Monastero_Features
 
 yolov8n.pt
+yolov8x.pt
+
+runs
+logs

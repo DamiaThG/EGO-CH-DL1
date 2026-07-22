@@ -34,7 +34,8 @@ if __name__ == '__main__':
     parser.add_argument('--weights', type=str, default='yolov8n.pt', help='Pesi pre-addestrati (es. yolov8n.pt)')
     parser.add_argument('--epochs', type=int, default=100, help='Numero di epoche')
     parser.add_argument('--batch', type=int, default=32, help='Batch size')
+    parser.add_argument('--name', type=str, default='task2_poi', help='Nome della cartella dei risultati')
     parser.add_argument('--resume', action='store_true', help='Riprendi l\'addestramento interrotto dall\'ultimo checkpoint')
     args = parser.parse_args()
     
-    train_yolo(args.data, args.weights, args.epochs, args.batch, resume=args.resume)
+    train_yolo(args.data, args.weights, args.epochs, args.batch, name=args.name, resume=args.resume)

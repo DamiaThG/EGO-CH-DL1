@@ -92,7 +92,7 @@ def format_yolo_dataset(src_dir_path, dest_dir_path, split_ratio=(0.8, 0.1, 0.1)
     class_names = [f"class_{i}" for i in range(num_classes)]
     
     yaml_content = {
-        'path': str(dest_dir.absolute()), # Percorso assoluto root di yolo
+        'path': str(dest_dir), # Percorso relativo (più sicuro tra Windows e Linux)
         'train': 'images/train',
         'val': 'images/val',
         'test': 'images/test',
