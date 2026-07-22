@@ -65,23 +65,24 @@ alias mamba-docker='srun --account=dl-course-q2 --partition=dl-course-q2 --qos=g
 
 Il cluster usa **Apptainer** (non Docker) per isolare gli ambienti. Le immagini SIF sono nelle posizioni indicate.
 
-### Immagine 1: `latest.sif` — Uso Generale
+### Immagine 1: `latest.sif` — Uso Generale (immagine di default per ProgDL1)
 
 - **Path:** `/shared/sifs/latest.sif` (link simbolico all'immagine più recente)
-- **Usata per:** baseline, xLSTM, TeSTra, mambapy, feature extraction, e qualsiasi modello **che NON usa mamba-ssm**
+- **Usata per:** tutti i task del progetto ProgDL1 (Task1, Task2, Task3), inclusi Mamba (via `mambapy`), LSTM, MLP, feature extraction
 - **Librerie extra installate** (via `pip install --user`):
   - `einops`, `scikit-learn`, `matplotlib`, `seaborn`, `pandas`, `tqdm`, `xlstm`, `mambapy`
   - `lightning`, `wandb`
 
-### Immagine 2: `mamba_env.sif` — Mamba SSM
+### Immagine 2: `mamba_env.sif` — Mamba SSM (solo per assembly-mistake-detection)
 
 - **Path:** `/home/mssdmn01t05c351v/assembly-mistake-detection/mamba_env.sif`
-- **Usata OBBLIGATORIAMENTE per:** qualsiasi codice che importa `mamba_ssm` (la libreria ufficiale Mamba)
+- **Appartenenza:** progetto `assembly-mistake-detection` — **NON usare per ProgDL1**
 - **Librerie chiave:** `mamba-ssm`, `causal-conv1d`, `lightning`, `wandb`
 - **Alias interattivo:** `mamba-docker` (lancia `srun + apptainer shell --nv mamba_env.sif` su gnode10)
 
-> ⚠️ **Regola tassativa:** Se il codice fa `from mamba_ssm import ...` → usa **`mamba_env.sif`**.
-> Tutti gli altri modelli → usa **`latest.sif`** (immagine di default del cluster).
+> ⚠️ **Regola per ProgDL1 (Task1/2/3):** Usare **sempre e solo `latest.sif`**.
+> La libreria `mamba-ssm` (CUDA kernels ufficiali) **non è accessibile** nel contesto di ProgDL1.
+> Per modelli Mamba in ProgDL1 usare esclusivamente **`mambapy`** (installata via `pip install --user` in `latest.sif`).
 
 > ⚠️ **Attenzione alle librerie:** Non tutte le librerie possono essere installate nel cluster.
 > Verifica sempre la compatibilità prima di aggiungere nuove dipendenze.
@@ -197,20 +198,20 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True  # riduce OOM VRAM
 
 ### Librerie disponibili per immagine
 
-| Libreria         | `latest.sif` | `mamba_env.sif` |
-|------------------|:------------:|:---------------:|
-| PyTorch          | ✓            | ✓               |
-| `lightning`      | ✓ (user)     | ✓ (user)        |
-| `wandb`          | ✓ (user)     | ✓ (user)        |
-| `einops`         | ✓ (user)     | ✓               |
-| `scikit-learn`   | ✓ (user)     | ✓               |
-| `matplotlib`     | ✓ (user)     | ✓               |
-| `pandas`         | ✓ (user)     | ✓               |
-| `tqdm`           | ✓ (user)     | ✓               |
-| `xlstm`          | ✓ (user)     | —               |
-| `mambapy`        | ✓ (user)     | —               |
-| `mamba-ssm`      | ✗            | ✓               |
-| `causal-conv1d`  | ✗            | ✓               |
+| Libreria         | `latest.sif` (ProgDL1) | `mamba_env.sif` (assembly-mistake-detection) |
+|------------------|:----------------------:|:--------------------------------------------:|
+| PyTorch          | ✓                      | ✓                                            |
+| `lightning`      | ✓ (user)               | ✓ (user)                                     |
+| `wandb`          | ✓ (user)               | ✓ (user)                                     |
+| `einops`         | ✓ (user)               | ✓                                            |
+| `scikit-learn`   | ✓ (user)               | ✓                                            |
+| `matplotlib`     | ✓ (user)               | ✓                                            |
+| `pandas`         | ✓ (user)               | ✓                                            |
+| `tqdm`           | ✓ (user)               | ✓                                            |
+| `xlstm`          | ✓ (user)               | —                                            |
+| `mambapy`        | ✓ (user) ← **Mamba per ProgDL1** | —                               |
+| `mamba-ssm`      | ✗ non accessibile      | ✓ (solo assembly-mistake-detection)          |
+| `causal-conv1d`  | ✗ non accessibile      | ✓ (solo assembly-mistake-detection)          |
 
 > `(user)` = installata via `pip install --user`, disponibile in `~/.local/`
 
