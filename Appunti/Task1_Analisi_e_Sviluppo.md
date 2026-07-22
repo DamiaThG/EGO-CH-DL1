@@ -258,10 +258,10 @@ Seguiamo le stesse metriche degli autori per un confronto diretto:
 
 ## 8. Prossimi Passi
 
-- [ ] Implementare il DataLoader che legge i file `.pt` da `/home/mssdmn01t05c351v/ProgDL1/data/Task1_Features`
-- [ ] Implementare il modello Mamba (`mamba-ssm` o implementazione manuale se non disponibile)
-- [ ] Implementare il training loop con loss `CrossEntropyLoss` per frame
-- [ ] Implementare il calcolo di FF1 e ASF1
+- [x] Implementare il DataLoader che legge i file `.pt` da `/home/mssdmn01t05c351v/ProgDL1/data/Task1_Features`
+- [x] Implementare il modello Mamba (tramite `mambapy`)
+- [x] Implementare il training loop con loss `CrossEntropyLoss` per frame
+- [x] Implementare il calcolo di FF1 e ASF1
 - [ ] Eseguire esperimenti con MLP e LSTM come baseline di confronto
 - [ ] Comparare i risultati con la baseline del paper (VGG19 + KNN)
 - [ ] Eventuale post-processing temporale (smoothing con finestra scorrevole)
