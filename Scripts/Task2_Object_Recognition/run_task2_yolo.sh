@@ -26,7 +26,7 @@ if [ -n "$APPTAINER_NAME" ] || [ -n "$SINGULARITY_NAME" ]; then
     python Scripts/Task2_Object_Recognition/task2_train_yolo.py \
         --data data/yolo_dataset/dataset.yaml \
         --weights yolov8x.pt \
-        --epochs 300 \
+        --epochs 100 \
         --batch 16 \
         --name task2_poi_xlarge
 else
@@ -34,7 +34,7 @@ else
     apptainer exec --nv /shared/sifs/latest.sif python Scripts/Task2_Object_Recognition/task2_train_yolo.py \
         --data data/yolo_dataset/dataset.yaml \
         --weights yolov8x.pt \
-        --epochs 300 \
+        --epochs 100 \
         --batch 16 \
         --name task2_poi_xlarge
 fi
