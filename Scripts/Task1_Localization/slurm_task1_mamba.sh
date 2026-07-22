@@ -7,7 +7,7 @@
 #SBATCH --qos=gpu-xlarge
 #SBATCH --nodelist=gnode10
 #SBATCH --gres=gpu:1
-#SBATCH --gres=shard:30000
+#SBATCH --gres=shard:22000
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
 #SBATCH --time=12:00:00
