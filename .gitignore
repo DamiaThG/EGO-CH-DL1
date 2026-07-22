@@ -28,6 +28,8 @@ weights
 
 Scripts/Task1_Localization/Bellomo_Features
 Scripts/Task1_Localization/Monastero_Features
+Scripts/Task3_Object_Retrieval/Bellomo_Features
+Scripts/Task3_Object_Retrieval/Monastero_Features
 
 yolov8n.pt
 yolov8x.pt
