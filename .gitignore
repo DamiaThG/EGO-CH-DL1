@@ -28,3 +28,5 @@ weights
 
 Scripts/Task1_Localization/Bellomo_Features
 Scripts/Task1_Localization/Monastero_Features
+
+yolov8n.pt
