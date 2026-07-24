@@ -135,18 +135,18 @@ Gli autori stessi riconoscono che i punteggi sono <<in general very low>>, e ide
 
 \subsection{Motivazione della Scelta Architetturale}
 
-La nostra proposta consiste nella sostituzione del backbone YOLOv3 con l'architettura \textbf{YOLOv8}~\cite{yolov8} (Ultralytics, 2023), che rappresenta un salto generazionale nell'evoluzione della famiglia YOLO. Le principali innovazioni architetturali che motivano questa scelta sono:
+Per affrontare questo task abbiamo scelto di utilizzare \textbf{YOLOv8}~\cite{yolov8} (Ultralytics, 2023) in sostituzione del più datato YOLOv3 (2018) impiegato nel paper originale. 
+
+La famiglia di modelli YOLO (\emph{You Only Look Once}) è celebre nell'ambito della computer vision per la sua capacità di individuare e classificare gli oggetti presenti in un'immagine in un unico passaggio, garantendo un'elevata velocità di esecuzione. Le motivazioni principali che ci hanno spinto verso la versione 8 sono le seguenti:
 
 \begin{enumerate}
-    \item \textbf{Design anchor-free}: YOLOv8 abbandona completamente il paradigma delle anchor box a favore di una formulazione \emph{anchor-free}, eliminando la necessità di definire a priori le proporzioni dei bounding box e riducendo significativamente il numero di iperparametri.
+    \item \textbf{Maggiore accuratezza ed efficienza}: YOLOv8 rappresenta lo stato dell'arte moderno della rete. A parità di risorse computazionali, riesce a estrarre caratteristiche visive molto più ricche e dettagliate rispetto a YOLOv3.
     
-    \item \textbf{Backbone CSPDarknet migliorato}: il backbone incorpora connessioni \emph{Cross-Stage Partial} (CSP) che permettono un flusso del gradiente più efficiente rispetto al Darknet-53 originale di YOLOv3, migliorando sia la convergenza sia la qualità delle feature estratte.
+    \item \textbf{Rilevamento senza griglie predefinite (Anchor-Free)}: i modelli tradizionali come YOLOv3 dovevano basarsi su forme di rettangoli predefinite (chiamate \emph{anchor box}) per tentare di indovinare dove si trovassero gli oggetti. YOLOv8 elimina questo vincolo rigido e impara a ritagliare direttamente i bordi degli oggetti, risultando molto più preciso quando si tratta di individuare elementi architettonici o forme irregolari.
     
-    \item \textbf{Neck C2f}: il modulo \emph{Cross-Stage Partial with 2 convolutions + flow} (C2f) sostituisce il tradizionale PANet, consentendo un'aggregazione multi-scala delle feature più ricca e computazionalmente efficiente.
+    \item \textbf{Capacità di distinguere oggetti simili}: grazie all'architettura riprogettata, la rete è in grado di distinguere meglio i dettagli fini tra oggetti semanticamente o visivamente molto simili (come quadri differenti o dettagli murali).
     
-    \item \textbf{Decoupled Head}: la testa di predizione separa esplicitamente il ramo di classificazione da quello di regressione delle bounding box, permettendo a ciascun ramo di specializzarsi indipendentemente.
-    
-    \item \textbf{Loss function avanzata}: YOLOv8 utilizza la \emph{Distribution Focal Loss} (DFL) per la regressione e la \emph{Binary Cross-Entropy} per la classificazione, con un meccanismo di \emph{Task-Aligned Assignment} che migliora l'assegnazione dei target ai predittori durante il training.
+    \item \textbf{Scalabilità dei modelli}: YOLOv8 offre diverse dimensioni di rete (da \emph{Nano} fino a \emph{X-Large}). Questo ci ha permesso di condurre un confronto diretto tra un modello leggerissimo (adatto a dispositivi mobili) e uno ad altissima capacità per il massimo della precisione.
 \end{enumerate}
 
 \subsection{Approccio End-to-End}
@@ -206,20 +206,7 @@ La Figura~\ref{fig:labels_dist} mostra la distribuzione delle istanze per classe
 
 L'addestramento è stato eseguito su un cluster HPC del Dipartimento di Matematica e Informatica (DMI) dell'Università di Catania, utilizzando GPU NVIDIA L40S tramite il sistema di job scheduling SLURM e il container runtime Apptainer.
 
-Lo script \texttt{task2\_train\_yolo.py} sfrutta l'API di alto livello della libreria \texttt{ultralytics} per configurare e lanciare il training:
-
-\begin{lstlisting}[language=Python, basicstyle=\small\ttfamily, frame=single, caption={Configurazione del training YOLOv8.}]
-model = YOLO(weights)  # Carica pesi pre-addestrati (COCO)
-results = model.train(
-    data=data_yaml,    # Percorso del dataset.yaml
-    epochs=epochs,     # Numero massimo di epoche
-    batch=batch,       # Batch size
-    device=0,          # Prima GPU disponibile
-    plots=True,        # Genera grafici automatici
-    save=True,         # Salva best.pt
-    exist_ok=True      # Sovrascrive run precedenti
-)
-\end{lstlisting}
+Lo script \texttt{task2\_train\_yolo.py} sfrutta l'API della libreria \texttt{ultralytics} per configurare e lanciare l'addestramento caricando i pesi pre-addestrati sul dataset COCO.
 
 La configurazione del job SLURM è stata definita nello script \texttt{run\_task2\_yolo.sh}, con le seguenti risorse allocate:
 \begin{itemize}
@@ -335,28 +322,7 @@ La Figura~\ref{fig:qualitative} mostra un confronto tra le annotazioni ground tr
     \label{fig:qualitative}
 \end{figure}
 
-\subsection{Curva Precision-Recall e F1-Confidence}
 
-Le Figure~\ref{fig:pr_curve} e~\ref{fig:f1_curve} mostrano rispettivamente la curva Precision-Recall e la curva F1-Confidence del modello YOLOv8x.
-
-\begin{figure}[H]
-    \centering
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{task2_poi_xlarge/BoxPR_curve.png}
-        \caption{Curva Precision-Recall. La curva blu spessa rappresenta la media su tutte le classi (mAP@50 = 0.297). Le curve grigie sottili mostrano le singole classi, evidenziando la forte eterogeneità delle performance.}
-        \label{fig:pr_curve}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{task2_poi_xlarge/BoxF1_curve.png}
-        \caption{Curva F1-Confidence. Il massimo F1 medio (0.36) viene raggiunto con una soglia di confidenza di 0.759, indicando che il modello è altamente selettivo nelle sue predizioni.}
-        \label{fig:f1_curve}
-    \end{subfigure}
-    \caption{Curve di valutazione del modello YOLOv8x.}
-    \label{fig:curves}
-\end{figure}
 
 \subsection{Matrice di Confusione}
 
@@ -374,7 +340,7 @@ Le Figure~\ref{fig:pr_curve} e~\ref{fig:f1_curve} mostrano rispettivamente la cu
 Il confronto con la baseline del paper originale rivela due risultati significativi:
 
 \paragraph{YOLOv8n supera la baseline con 20$\times$ meno parametri.}
-Il modello Nano ha ottenuto un mAP@50 di \textbf{19.92\%}, superiore del \textbf{+28.9\%} rispetto al 15.45\% di YOLOv3, pur disponendo di soli 3.3M di parametri contro i 61M del baseline. Questo risultato dimostra che le innovazioni architetturali di YOLOv8 (anchor-free design, C2f neck, decoupled head) non solo compensano la riduzione drastica di capacità, ma portano a un netto miglioramento delle performance.
+Il modello Nano ha ottenuto un mAP@50 di \textbf{19.92\%}, superiore del \textbf{+28.9\%} rispetto al 15.45\% di YOLOv3, pur disponendo di soli 3.3M di parametri contro i 61M del baseline. Questo risultato dimostra che le innovazioni architetturali di YOLOv8 (come l'approccio anchor-free e la struttura modernizzata) non solo compensano la riduzione drastica di capacità, ma portano a un netto miglioramento delle performance.
 
 Il modello Nano risulta particolarmente adatto a scenari di deployment in tempo reale su dispositivi edge (es. visori HoloLens, smartphone), dove la potenza computazionale e il consumo energetico sono vincoli stringenti.
 
