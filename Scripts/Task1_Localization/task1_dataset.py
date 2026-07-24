@@ -139,19 +139,22 @@ def collate_fn(batch):
 
 def get_dataloaders(
     features_dir: str,
+    val_features_dir: str = None,
     batch_size: int = 4,
     val_split: float = 0.2,
     num_workers: int = 4,
     seed: int = 42,
 ):
     """
-    Costruisce DataLoader per train e val da una singola cartella di feature.
-    Divide i file .pt con uno shuffle riproducibile (seed fisso).
+    Costruisce DataLoader per train e val. Se val_features_dir è specificata, carica
+    il validation set da una cartella separata. Altrimenti cerca un file "validation" 
+    nella cartella di train o esegue uno split random.
 
     Args:
-        features_dir: path alla cartella del dataset (es. data/Task1_Features/Bellomo)
+        features_dir: path alla cartella del training (es. data/Task1_Features/Bellomo_Train)
+        val_features_dir: path opzionale alla cartella validation (es. data/Task1_Features/Bellomo_Val)
         batch_size:   dimensione del batch per il training (val usa sempre batch_size=1)
-        val_split:    frazione dei file da usare come validation (default 20%)
+        val_split:    frazione da usare come validation (solo se val_features_dir è None)
         num_workers:  worker per il DataLoader
         seed:         seed per la riproducibilità dello split
 
@@ -164,7 +167,21 @@ def get_dataloaders(
     if len(all_files) == 0:
         raise FileNotFoundError(f"Nessun file .pt in {features_dir}")
 
-    # Cerca esplicitamente un file di validazione
+    # Modalità a due cartelle separate
+    if val_features_dir is not None:
+        val_dir = Path(val_features_dir)
+        val_files = sorted([f.name for f in val_dir.glob("*.pt")])
+        if len(val_files) == 0:
+            raise FileNotFoundError(f"Nessun file .pt in {val_features_dir}")
+            
+        print(f"[get_dataloaders] Modalità cartelle separate: Train={features_dir}, Val={val_features_dir}")
+        train_files = all_files
+        train_ds = Task1FeatureDataset(features_dir, file_list=train_files)
+        val_ds   = Task1FeatureDataset(val_dir, file_list=val_files)
+        
+    # Modalità a singola cartella (fallback)
+    else:
+        # Cerca esplicitamente un file di validazione
     val_candidate = next((f for f in all_files if "validation" in f.lower()), None)
     
     if val_candidate is not None:
@@ -180,13 +197,13 @@ def get_dataloaders(
         val_files = shuffled[:n_val]
         train_files = shuffled[n_val:]
 
-    print(
-        f"[get_dataloaders] Split → Train: {len(train_files)} | Val: {len(val_files)} "
-        f"(seed={seed})"
-    )
+        print(
+            f"[get_dataloaders] Split da singola cartella → Train: {len(train_files)} | Val: {len(val_files)} "
+            f"(seed={seed})"
+        )
 
-    train_ds = Task1FeatureDataset(features_dir, file_list=train_files)
-    val_ds   = Task1FeatureDataset(features_dir, file_list=val_files)
+        train_ds = Task1FeatureDataset(features_dir, file_list=train_files)
+        val_ds   = Task1FeatureDataset(features_dir, file_list=val_files)
 
     train_loader = DataLoader(
         train_ds,

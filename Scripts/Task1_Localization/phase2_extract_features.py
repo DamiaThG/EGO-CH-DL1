@@ -35,24 +35,18 @@ def load_global_mapping(filepath):
             if len(parts) >= 2:
                 path = parts[0]
                 label = int(float(parts[-1]))
-                # Usa nome_cartella/nome_file.jpg come chiave per evitare collisioni di frame0001.jpg
+                # Usa nome_cartella/nome_file.jpg come chiave per evitare collisioni
                 key = f"{os.path.basename(os.path.dirname(path))}/{os.path.basename(path)}"
                 mapping[key] = label
     return mapping
 
 def find_local_label_file(seq_dir):
-    # Cerca un file txt che assomiglia a gt.txt o Labels.txt nella cartella o nel parent
     candidates = []
-    
-    # 1. Dentro la cartella stessa
     for f in seq_dir.glob("*.txt"):
         if f.name.lower().startswith("gt") or "label" in f.name.lower():
             candidates.append(f)
-            
-    if len(candidates) == 1:
-        return candidates[0]
+    if len(candidates) == 1: return candidates[0]
         
-    # 2. Nel parent
     for f in seq_dir.parent.glob("*.txt"):
         if f.name.lower().startswith("gt") or "label" in f.name.lower():
             candidates.append(f)
@@ -60,16 +54,13 @@ def find_local_label_file(seq_dir):
     if len(candidates) == 1:
         return candidates[0]
     elif len(candidates) > 1:
-        # Euristica: se ci sono più gt.txt (es. Test1.txt, Test2.txt), cerca il numero nel nome della directory (es. Video1)
         dir_num = re.search(r'\d+', seq_dir.name)
         if dir_num:
             num_str = dir_num.group()
             for c in candidates:
                 c_num = re.search(r'\d+', c.name)
-                if c_num and c_num.group() == num_str:
-                    return c
-        return candidates[0] # Fallback
-        
+                if c_num and c_num.group() == num_str: return c
+        return candidates[0]
     return None
 
 def get_frame_idx(f):
@@ -78,31 +69,39 @@ def get_frame_idx(f):
 
 def main():
     parser = argparse.ArgumentParser(description="Extract features for Task 1: Room-based Localization")
-    parser.add_argument("--frames_dir", type=str, required=True, help="Directory contenente i frame (es. data/Bellomo/Training)")
-    parser.add_argument("--output_dir", type=str, required=True, help="Directory di output per i file .pt")
-    parser.add_argument("--labels_mapping", type=str, default=None, help="(Opzionale) Path a un file txt globale (es. training.txt) con path e label")
+    parser.add_argument("--frames_dir", type=str, required=True, help="Directory contenente i frame")
+    parser.add_argument("--output_dir", type=str, required=True, help="Directory di output per i file .pt di Training/Default")
+    parser.add_argument("--labels_mapping", type=str, default=None, help="Path a training.txt")
+    parser.add_argument("--val_labels_mapping", type=str, default=None, help="Path a validation.txt")
+    parser.add_argument("--val_output_dir", type=str, default=None, help="Directory di output per i file .pt di Validation")
     args = parser.parse_args()
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Utilizzando il device: {device}")
     
     os.makedirs(args.output_dir, exist_ok=True)
+    if args.val_output_dir:
+        os.makedirs(args.val_output_dir, exist_ok=True)
+        
+    if args.val_labels_mapping and not args.val_output_dir:
+        print("ATTENZIONE: Hai fornito --val_labels_mapping ma non --val_output_dir. I file val verranno persi!")
     
     project_root = Path(__file__).resolve().parent.parent.parent
     model = get_backbone(project_root).to(device)
-    print("DINOv2 (dinov2_vits14) inizializzata (modalità feature extraction).")
     
     frames_path = Path(args.frames_dir)
     
-    global_mapping = {}
-    if args.labels_mapping:
-        if os.path.exists(args.labels_mapping):
-            global_mapping = load_global_mapping(args.labels_mapping)
-            print(f"Caricato mapping globale con {len(global_mapping)} entry.")
-        else:
-            print(f"ATTENZIONE: Il file mapping globale {args.labels_mapping} non esiste!")
+    # Carica Mappings
+    train_mapping = {}
+    if args.labels_mapping and os.path.exists(args.labels_mapping):
+        train_mapping = load_global_mapping(args.labels_mapping)
+        print(f"Caricato mapping TRAIN con {len(train_mapping)} entry.")
+        
+    val_mapping = {}
+    if args.val_labels_mapping and os.path.exists(args.val_labels_mapping):
+        val_mapping = load_global_mapping(args.val_labels_mapping)
+        print(f"Caricato mapping VAL con {len(val_mapping)} entry.")
     
-    # Trova tutti i file JPG e raggruppali per cartella padre (sequenza)
     image_files = list(frames_path.rglob('*.jpg'))
     sequences = {}
     for img_file in image_files:
@@ -120,54 +119,58 @@ def main():
     unique_rooms = set()
     
     for seq_dir, jpg_files in tqdm(sequences.items(), desc="Processing Sequences"):
-        out_features = []
-        out_room_labels = []
-        out_frame_ids = []
+        train_features, train_labels, train_ids = [], [], []
+        val_features, val_labels, val_ids = [], [], []
         
         video_id = seq_dir.name
-        
         jpg_files.sort(key=get_frame_idx)
         
-        # Modalità Sequenziale Locale
+        # Modalità Sequenziale (se non c'è mapping globale)
         local_labels = []
-        if not global_mapping:
+        if not train_mapping and not val_mapping:
             label_file = find_local_label_file(seq_dir)
             if label_file:
-                print(f"[{video_id}] Trovato label file locale: {label_file.name}")
                 with open(label_file, 'r') as f:
                     for line in f:
                         line = line.strip()
                         if line:
-                            # Prende solo l'ultima parte per sicurezza (supporta sia 'X' che 'percorso X')
-                            parts = line.split()
-                            local_labels.append(int(float(parts[-1])))
-            else:
-                print(f"ATTENZIONE: Nessun file label trovato per la sequenza {seq_dir.name}. Uso label fittizia 0.")
+                            local_labels.append(int(float(line.split()[-1])))
         
         for i, img_path in enumerate(jpg_files):
             frame_idx = get_frame_idx(img_path)
+            room_id = -1
+            target_split = 'train' # Default
             
-            # Determina la label
-            room_id = 0
-            if global_mapping:
-                key = f"{img_path.parent.name}/{img_path.name}"
-                if key in global_mapping:
-                    room_id = global_mapping[key]
+            key = f"{img_path.parent.name}/{img_path.name}"
+            
+            if train_mapping or val_mapping:
+                # Controlla prima se è in train
+                if key in train_mapping:
+                    room_id = train_mapping[key]
+                    target_split = 'train'
+                # Controlla se è in validation
+                elif key in val_mapping:
+                    room_id = val_mapping[key]
+                    target_split = 'val'
                 else:
-                    # Tenta un matching parziale
-                    fallback_found = False
-                    for k, v in global_mapping.items():
+                    # Fallback parziale
+                    found = False
+                    for k, v in train_mapping.items():
                         if img_path.name == k.split('/')[-1]:
-                            room_id = v
-                            fallback_found = True
-                            break
-                    if not fallback_found:
-                        print(f"ATTENZIONE: Label non trovata per {key}. Uso 0.")
+                            room_id = v; target_split = 'train'; found = True; break
+                    if not found:
+                        for k, v in val_mapping.items():
+                            if img_path.name == k.split('/')[-1]:
+                                room_id = v; target_split = 'val'; found = True; break
+                    
+                    if not found:
+                        print(f"Label non trovata per {key}, ignoro frame.")
+                        continue
             else:
+                # Usa file locale
                 if i < len(local_labels):
                     room_id = local_labels[i]
                 else:
-                    # Silenziamo l'errore per ogni frame, stampiamo solo una volta alla fine se serve
                     room_id = local_labels[-1] if local_labels else 0
                     
             unique_rooms.add(room_id)
@@ -176,35 +179,47 @@ def main():
                 img = Image.open(img_path).convert("RGB")
                 img_t = transform(img).unsqueeze(0).to(device)
             except Exception as e:
-                print(f"Errore immagine {img_path}: {e}")
-                continue
-            
+                print(f"Errore {img_path}: {e}"); continue
+                
             with torch.no_grad():
                 feat = model(img_t).squeeze(0).cpu()
                 
-            out_features.append(feat)
-            out_room_labels.append(room_id)
-            out_frame_ids.append(frame_idx)
+            if target_split == 'train':
+                train_features.append(feat); train_labels.append(room_id); train_ids.append(frame_idx)
+            else:
+                val_features.append(feat); val_labels.append(room_id); val_ids.append(frame_idx)
                 
-        if len(out_features) > 0:
+        # Salva Train
+        if len(train_features) > 0:
             data = {
                 "video_id": video_id,
-                "features": torch.stack(out_features),
-                "room_labels": torch.tensor(out_room_labels, dtype=torch.long),
-                "frame_ids": torch.tensor(out_frame_ids, dtype=torch.long)
+                "features": torch.stack(train_features),
+                "room_labels": torch.tensor(train_labels, dtype=torch.long),
+                "frame_ids": torch.tensor(train_ids, dtype=torch.long)
             }
             out_file = Path(args.output_dir) / f"{video_id}_features.pt"
             torch.save(data, out_file)
-            print(f"Salvati {len(out_features)} tensori in {out_file}")
-        else:
-            print(f"Nessuna immagine valida trovata per {video_id}")
+            
+        # Salva Validation
+        if len(val_features) > 0 and args.val_output_dir:
+            data = {
+                "video_id": video_id,
+                "features": torch.stack(val_features),
+                "room_labels": torch.tensor(val_labels, dtype=torch.long),
+                "frame_ids": torch.tensor(val_ids, dtype=torch.long)
+            }
+            out_file_val = Path(args.val_output_dir) / f"{video_id}_features.pt"
+            torch.save(data, out_file_val)
 
-    # Salva un finto room_mapping.json con le etichette reali trovate (per compatibilità col Dataloader)
-    room_mapping = {str(r): r for r in unique_rooms}
-    room_mapping_file = Path(args.output_dir) / "room_mapping.json"
-    with open(room_mapping_file, 'w') as f:
-        json.dump(room_mapping, f, indent=4)
-    print(f"Mappatura Room salvata in {room_mapping_file} (Totale {len(room_mapping)} ambienti unici trovati)")
+    # Crea room mapping
+    room_mapping_dict = {str(r): r for r in unique_rooms}
+    
+    with open(Path(args.output_dir) / "room_mapping.json", 'w') as f:
+        json.dump(room_mapping_dict, f, indent=4)
+        
+    if args.val_output_dir:
+        with open(Path(args.val_output_dir) / "room_mapping.json", 'w') as f:
+            json.dump(room_mapping_dict, f, indent=4)
 
 if __name__ == "__main__":
     main()

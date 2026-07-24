@@ -96,7 +96,9 @@ def main():
     # Dataset
     parser.add_argument("--features_dir", type=str, required=True,
                         help="Path alla cartella delle feature (es. data/Task1_Features/Bellomo)")
-    
+    parser.add_argument("--val_features_dir", type=str, default=None,
+                        help="Path opzionale alla cartella delle feature di validation")
+
     # Modello
     parser.add_argument("--model", type=str, default="mamba",
                         choices=["mamba", "mlp", "lstm"],
@@ -128,7 +130,9 @@ def main():
     
     # ── DataLoaders ────────────────────────────────────────────────────────
     train_loader, val_loader, num_classes = get_dataloaders(
-        args.features_dir, batch_size=args.batch_size,
+        args.features_dir,
+        val_features_dir=args.val_features_dir,
+        batch_size=args.batch_size,
         val_split=0.2, num_workers=args.num_workers
     )
     
