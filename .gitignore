@@ -34,5 +34,6 @@ Scripts/Task3_Object_Retrieval/Monastero_Features
 yolov8n.pt
 yolov8x.pt
 
-runs
+Scripts\Task2_Object_Recognition\runs\detect\task2_poi\weights
+Scripts\Task2_Object_Recognition\runs\detect\task2_poi_xlarge\weights
 logs
