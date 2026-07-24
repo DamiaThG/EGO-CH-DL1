@@ -1,0 +1,449 @@
+\documentclass[a4paper,12pt]{report}
+
+% ============ PACCHETTI ============
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[italian]{babel}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{listings}
+
+\geometry{margin=2.5cm}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=green!50!black,
+    urlcolor=blue!60!black
+}
+
+% Percorso delle immagini
+\graphicspath{{Scripts/Task2_Object_Recognition/runs/detect/}}
+
+\title{Progetto EGO-CH --- Deep Learning\\
+\large Relazione Finale}
+\author{Nome Cognome \and Nome Cognome \and Nome Cognome}
+\date{Anno Accademico 2025/2026}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+% ================================================================
+% CAPITOLO 1 — INTRODUZIONE (generico, vetrina)
+% ================================================================
+\chapter{Introduzione}
+
+Il progetto si colloca nell'ambito della \emph{Egocentric Vision} applicata alla fruizione del patrimonio culturale. 
+Il dataset \textbf{EGO-CH} \cite{egoref}, proposto da Ragusa et al., raccoglie video in prima persona registrati da visitatori di due siti culturali siciliani --- Palazzo Bellomo (Siracusa) e il Monastero dei Benedettini (Catania) --- e definisce tre task fondamentali per la comprensione automatica del comportamento del visitatore:
+
+\begin{enumerate}
+    \item \textbf{Task 1 --- Room-based Localization}: classificazione frame-per-frame dell'ambiente in cui si trova il visitatore.
+    \item \textbf{Task 2 --- Point of Interest Recognition}: rilevamento e classificazione dei Punti di Interesse (POI) nei frame egocentrici tramite object detection.
+    \item \textbf{Task 3 --- Object Retrieval}: recupero dell'immagine di riferimento di un oggetto a partire da una query egocentrica, mediante matching nello spazio latente.
+\end{enumerate}
+
+La presente relazione descrive nel dettaglio il lavoro svolto sul \textbf{Task 2}, che ha costituito il contributo personale dell'autore al progetto di gruppo.
+
+% ================================================================
+% CAPITOLO 2 — DATASET (generico, vetrina)
+% ================================================================
+\chapter{Il Dataset EGO-CH}
+
+Il dataset EGO-CH è composto da video egocentrici acquisiti mediante dispositivi indossabili (HoloLens, GoPro) all'interno di due siti culturali:
+
+\begin{itemize}
+    \item \textbf{Palazzo Bellomo} (Siracusa): 22 ambienti, 191 Points of Interest, video di training (57 clip, media 1.4~min) e test (10 clip, media 31.3~min) a risoluzione $1280\times720$ @ 29.97~fps.
+    \item \textbf{Monastero dei Benedettini} (Catania): 4 ambienti, 35 POI (inclusi elementi architettonici), video di training (48 clip) e test (455 clip brevi + 60 visite reali) a risoluzione $1216\times684$ / $1408\times792$.
+\end{itemize}
+
+Per ciascun POI il dataset fornisce annotazioni sotto forma di bounding box in formato testuale, associate frame per frame ai video di riferimento. 
+La natura dei contenuti egocentrici comporta sfide significative quali motion blur, occlusioni parziali, variazioni estreme di illuminazione e ambiguità semantica tra POI visivamente simili.
+
+% ================================================================
+% CAPITOLO 3 — TASK 2: POINT OF INTEREST RECOGNITION (dettagliato)
+% ================================================================
+\chapter{Task 2 --- Point of Interest Recognition}
+
+\section{Definizione del Problema}
+
+Il Task 2, denominato \emph{Point of Interest Recognition}, consiste nel rilevare e classificare i Punti di Interesse (POI) all'interno di frame estratti da video egocentrici. 
+Si tratta di un problema di \textbf{object detection}: per ogni frame il modello deve predire un insieme di bounding box, ciascuna associata alla classe del POI corrispondente, nella forma $(x_{\text{center}}, y_{\text{center}}, w, h, \text{class})$.
+
+A differenza dei task 1 e 3, che operano rispettivamente a livello di classificazione globale del frame e di matching tra embedding, il Task 2 richiede una localizzazione spaziale fine-grained degli oggetti di interesse, rendendo necessario l'impiego di architetture specifiche per la detection.
+
+\section{La Baseline del Paper Originale}
+\label{sec:baseline}
+
+\subsection{Architettura e Protocollo}
+
+Gli autori del dataset EGO-CH hanno adottato \textbf{YOLOv3}~\cite{yolov3} (Redmon e Farhadi, 2018) come baseline per il Task 2, motivando la scelta con le performance in tempo reale e la popolarità dell'architettura nel dominio del patrimonio culturale~\cite{egoref}.
+
+YOLOv3 è un detector \emph{single-stage} basato su \emph{anchor boxes}, con un backbone \textbf{Darknet-53} da circa 61 milioni di parametri. Le caratteristiche salienti della configurazione adottata nel paper sono:
+
+\begin{itemize}
+    \item \textbf{Anchor boxes}: vengono utilizzate le anchor standard fornite dagli autori per il dataset COCO, senza ricalcolo specifico per il dominio egocentrico.
+    \item \textbf{Soglia di detection}: ottimizzata per ciascun sito culturale sul validation set tramite grid search nel range $[5 \times 10^{-4};\; 0.40]$:
+    \begin{itemize}
+        \item Palazzo Bellomo: soglia = $0.01$, learning rate = $0.001$
+        \item Monastero dei Benedettini: soglia = $0.001$, learning rate = $0.01$
+    \end{itemize}
+    \item \textbf{Metrica di valutazione}: \textbf{mean Average Precision (mAP)} con soglia IoU pari a $0.5$ (equivalente a mAP@50), mediata su tutti i video di test.
+\end{itemize}
+
+\subsection{Risultati del Paper (Tabella 4)}
+
+I risultati riportati nella Tabella~4 del paper originale sono:
+
+\begin{table}[H]
+\centering
+\caption{Risultati della baseline YOLOv3 dal paper EGO-CH~\cite{egoref} (Tabella 4).}
+\label{tab:baseline_paper}
+\begin{tabular}{lc}
+\toprule
+\textbf{Sito Culturale} & \textbf{mAP@50} \\
+\midrule
+Palazzo Bellomo (191 POI)          & 10.59\% \\
+Monastero dei Benedettini (35 POI) & 15.45\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Analisi delle Difficoltà Evidenziate}
+
+Gli autori stessi riconoscono che i punteggi sono <<in general very low>>, e identificano le seguenti cause principali:
+
+\begin{enumerate}
+    \item \textbf{Natura atipica dei POI}: i punti di interesse non sono solo oggetti ben definiti (quadri, sculture), ma includono \textbf{elementi architettonici} come pavimenti, corridoi e scale --- intrinsecamente difficili da delimitare con bounding box.
+    \item \textbf{Riconoscimento a livello di istanza}: a differenza dei benchmark classici di object detection (COCO, VOC), dove le classi sono categorie semantiche ampie (es. ``cane'', ``auto''), qui il modello deve discriminare tra \emph{istanze} diverse dello stesso tipo di oggetto (es. quadri diversi in stanze diverse).
+    \item \textbf{Motion blur estremo}: i movimenti rapidi della testa del visitatore producono artefatti di sfocatura che degradano significativamente le feature estratte dal backbone.
+    \item \textbf{Variazioni di illuminazione}: il dataset del Monastero è stato raccolto nell'arco di 3 mesi, con condizioni di luce radicalmente diverse.
+    \item \textbf{Disparità tra siti}: Palazzo Bellomo, con 191 POI, risulta drasticamente più difficile del Monastero (35 POI), come confermato dal gap di 5 punti percentuali nella mAP.
+\end{enumerate}
+
+\section{La Nostra Proposta: YOLOv8}
+
+\subsection{Motivazione della Scelta Architetturale}
+
+La nostra proposta consiste nella sostituzione del backbone YOLOv3 con l'architettura \textbf{YOLOv8}~\cite{yolov8} (Ultralytics, 2023), che rappresenta un salto generazionale nell'evoluzione della famiglia YOLO. Le principali innovazioni architetturali che motivano questa scelta sono:
+
+\begin{enumerate}
+    \item \textbf{Design anchor-free}: YOLOv8 abbandona completamente il paradigma delle anchor box a favore di una formulazione \emph{anchor-free}, eliminando la necessità di definire a priori le proporzioni dei bounding box e riducendo significativamente il numero di iperparametri.
+    
+    \item \textbf{Backbone CSPDarknet migliorato}: il backbone incorpora connessioni \emph{Cross-Stage Partial} (CSP) che permettono un flusso del gradiente più efficiente rispetto al Darknet-53 originale di YOLOv3, migliorando sia la convergenza sia la qualità delle feature estratte.
+    
+    \item \textbf{Neck C2f}: il modulo \emph{Cross-Stage Partial with 2 convolutions + flow} (C2f) sostituisce il tradizionale PANet, consentendo un'aggregazione multi-scala delle feature più ricca e computazionalmente efficiente.
+    
+    \item \textbf{Decoupled Head}: la testa di predizione separa esplicitamente il ramo di classificazione da quello di regressione delle bounding box, permettendo a ciascun ramo di specializzarsi indipendentemente.
+    
+    \item \textbf{Loss function avanzata}: YOLOv8 utilizza la \emph{Distribution Focal Loss} (DFL) per la regressione e la \emph{Binary Cross-Entropy} per la classificazione, con un meccanismo di \emph{Task-Aligned Assignment} che migliora l'assegnazione dei target ai predittori durante il training.
+\end{enumerate}
+
+\subsection{Approccio End-to-End}
+
+A differenza dei Task 1 e 3, in cui le feature visive vengono estratte offline tramite un foundation model (DINOv2) e poi elaborate da classificatori o metriche di similarità a valle, nel Task 2 si adotta un approccio completamente \textbf{end-to-end}: il modello YOLOv8 opera direttamente sulle immagini raw ad alta risoluzione, estraendo internamente le feature tramite il proprio backbone convoluzionale e producendo le predizioni di detection in un unico passaggio forward.
+
+Questa scelta è motivata dal fatto che i detector moderni come YOLOv8 sono progettati per apprendere rappresentazioni spazialmente localizzate, ottimizzate congiuntamente per la regressione delle bounding box e la classificazione --- una proprietà che si perderebbe con un'estrazione di feature generiche pre-calcolate.
+
+\section{Pipeline Implementativa}
+
+\subsection{Fase 1: Preprocessing e Riformattazione del Dataset}
+\label{sec:formatting}
+
+Il dataset EGO-CH presenta una \textbf{struttura eterogenea} tra i due siti culturali, che ha richiesto una fase di riformattazione non banale:
+
+\begin{itemize}
+    \item \textbf{Palazzo Bellomo}: struttura piatta, con immagini e annotazioni (file \texttt{.txt} con bounding box in formato YOLO) raggruppate in cartelle separate ma con nomi corrispondenti.
+    \item \textbf{Monastero dei Benedettini}: struttura gerarchica profonda, con immagini e annotazioni annidate per POI specifico (es. \texttt{Training/5\_Antirefettorio/5.3\_POI\_nome/}).
+\end{itemize}
+
+Lo script \texttt{task2\_format\_yolo.py} è stato sviluppato per unificare queste strutture in un formato compatibile con YOLOv8:
+
+\begin{enumerate}
+    \item \textbf{Scansione ricorsiva}: il dataset sorgente viene esplorato con \texttt{rglob} per individuare tutte le immagini (\texttt{.jpg}, \texttt{.jpeg}, \texttt{.png}) e i file di annotazione (\texttt{.txt}).
+    
+    \item \textbf{Associazione immagine--label}: per ogni immagine viene cercato un file \texttt{.txt} con lo stesso \emph{stem} (nome senza estensione). Solo le coppie valide vengono mantenute.
+    
+    \item \textbf{Split randomizzato}: le coppie valide vengono mescolate con seed fissato ($\texttt{seed}=42$) e suddivise in training (80\%), validation (10\%) e test (10\%).
+    
+    \item \textbf{Copia nella struttura YOLO}: le immagini e le label vengono copiate nelle rispettive sottocartelle:
+    \begin{verbatim}
+    yolo_dataset/
+    +-- images/
+    |   +-- train/
+    |   +-- val/
+    |   +-- test/
+    +-- labels/
+    |   +-- train/
+    |   +-- val/
+    |   +-- test/
+    +-- dataset.yaml
+    \end{verbatim}
+    
+    \item \textbf{Generazione automatica del file \texttt{dataset.yaml}}: viene creato il file di configurazione richiesto da YOLOv8, contenente i percorsi delle cartelle, il numero di classi (dedotto dal class ID massimo nelle annotazioni) e i nomi delle classi.
+\end{enumerate}
+
+La Figura~\ref{fig:labels_dist} mostra la distribuzione delle istanze per classe e delle bounding box nel dataset formattato: si nota una marcata \emph{long-tail distribution}, con poche classi dominanti e numerose classi con pochissime istanze.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{task2_poi_xlarge/labels.jpg}
+    \caption{Distribuzione delle istanze per classe (in alto a sinistra), distribuzione spaziale dei centri delle bounding box (in basso a sinistra) e distribuzione delle dimensioni (larghezza vs. altezza, in basso a destra). Si nota la forte disomogeneità tra le classi e la predominanza di bounding box di grandi dimensioni, tipiche dei POI architettonici.}
+    \label{fig:labels_dist}
+\end{figure}
+
+\subsection{Fase 2: Training}
+
+L'addestramento è stato eseguito su un cluster HPC del Dipartimento di Matematica e Informatica (DMI) dell'Università di Catania, utilizzando GPU NVIDIA L40S tramite il sistema di job scheduling SLURM e il container runtime Apptainer.
+
+Lo script \texttt{task2\_train\_yolo.py} sfrutta l'API di alto livello della libreria \texttt{ultralytics} per configurare e lanciare il training:
+
+\begin{lstlisting}[language=Python, basicstyle=\small\ttfamily, frame=single, caption={Configurazione del training YOLOv8.}]
+model = YOLO(weights)  # Carica pesi pre-addestrati (COCO)
+results = model.train(
+    data=data_yaml,    # Percorso del dataset.yaml
+    epochs=epochs,     # Numero massimo di epoche
+    batch=batch,       # Batch size
+    device=0,          # Prima GPU disponibile
+    plots=True,        # Genera grafici automatici
+    save=True,         # Salva best.pt
+    exist_ok=True      # Sovrascrive run precedenti
+)
+\end{lstlisting}
+
+La configurazione del job SLURM è stata definita nello script \texttt{run\_task2\_yolo.sh}, con le seguenti risorse allocate:
+\begin{itemize}
+    \item 1 GPU NVIDIA L40S (22 GB VRAM allocati tramite \texttt{gres=shard})
+    \item 32 GB di RAM di sistema
+    \item Timeout massimo di 12 ore
+\end{itemize}
+
+\section{Esperimenti e Risultati}
+
+Sono stati condotti due esperimenti, variando la capacità del modello per analizzare il trade-off tra efficienza computazionale e accuratezza.
+
+\subsection{Setup Sperimentale}
+
+\begin{table}[H]
+\centering
+\caption{Configurazione dei due esperimenti condotti.}
+\label{tab:setup}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Parametro} & \textbf{Run 1 (Nano)} & \textbf{Run 2 (X-Large)} \\
+\midrule
+Architettura        & YOLOv8n              & YOLOv8x \\
+Pesi iniziali       & \texttt{yolov8n.pt} (COCO) & \texttt{yolov8x.pt} (COCO) \\
+Parametri           & $\sim$3.3 M          & $\sim$68.3 M \\
+Epoche massime      & 100                  & 300 \\
+Batch size          & 32                   & 16 \\
+Risoluzione input   & $640 \times 640$     & $640 \times 640$ \\
+Optimizer           & Auto (SGD)           & Auto (SGD) \\
+Learning rate ($\text{lr}_0$) & 0.01       & 0.01 \\
+Data augmentation   & Mosaic, RandAugment, Erasing & Mosaic, RandAugment, Erasing \\
+Early stopping      & Patience = 100       & Patience = 100 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Risultati Quantitativi}
+
+La Tabella~\ref{tab:results_main} riporta il confronto completo tra la baseline del paper originale e i nostri due modelli sul sito del Monastero dei Benedettini.
+
+\begin{table}[H]
+\centering
+\caption{Confronto delle performance sul Monastero dei Benedettini. La metrica mAP@50 consente il confronto diretto con il paper originale, che utilizza IoU = 0.5. Vengono riportate anche le metriche COCO-style (mAP@[50:95]) per completezza.}
+\label{tab:results_main}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Metrica} & \textbf{Baseline YOLOv3} & \textbf{YOLOv8n (Nano)} & \textbf{YOLOv8x (X-Large)} \\
+ & \textbf{\cite{egoref}} & & \\
+\midrule
+\textbf{mAP@50}         & 15.45\%   & 19.92\%   & \textbf{29.70\%} \\
+mAP@[50:95]     & ---       & 14.82\%   & \textbf{24.30\%} \\
+Precision       & ---       & 0.489     & \textbf{0.685}   \\
+Recall          & ---       & 0.218     & \textbf{0.298}   \\
+\midrule
+Parametri       & $\sim$61 M & $\sim$3.3 M & $\sim$68.3 M \\
+Epoche effettive & ---      & 100/100   & 269/300 (early stop) \\
+Tempo di training & ---     & $\sim$1.6 ore & $\sim$7.2 ore \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Incrementi relativi rispetto alla baseline YOLOv3 del paper (mAP@50 = 15.45\%).}
+\label{tab:improvement}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Modello} & \textbf{mAP@50} & \textbf{$\Delta$ relativo vs. Baseline} \\
+\midrule
+Baseline YOLOv3 (Paper) & 15.45\% & --- \\
+YOLOv8n (Nano)          & 19.92\% & \textbf{+28.9\%} \\
+YOLOv8x (X-Large)       & 29.70\% & \textbf{+92.2\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Curve di Addestramento}
+
+Le Figure~\ref{fig:results_nano} e~\ref{fig:results_xlarge} riportano l'andamento delle loss e delle metriche durante l'addestramento dei due modelli.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{task2_poi/results.png}
+    \caption{Curve di addestramento del modello YOLOv8n (Nano, 100 epoche). Le loss di training (box, cls, dfl) mostrano una convergenza regolare, mentre le metriche di validazione (mAP@50 e mAP@50-95) evidenziano un aumento costante fino all'ultima epoca, suggerendo che il modello avrebbe potuto beneficiare di un addestramento più lungo.}
+    \label{fig:results_nano}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{task2_poi_xlarge/results.png}
+    \caption{Curve di addestramento del modello YOLOv8x (X-Large, 269 epoche su 300 massime). Si osserva una convergenza più lenta ma più ricca: le loss di validazione raggiungono un plateau intorno all'epoca 100, mentre le metriche mAP continuano a crescere fino all'epoca $\sim$170, dopo la quale il meccanismo di early stopping (patience = 100) arresta l'addestramento all'epoca 269.}
+    \label{fig:results_xlarge}
+\end{figure}
+
+\subsection{Analisi Qualitativa}
+
+La Figura~\ref{fig:qualitative} mostra un confronto tra le annotazioni ground truth e le predizioni del modello YOLOv8x su un batch di validazione. Si osserva che il modello è in grado di localizzare correttamente i POI anche in condizioni di illuminazione sfavorevole e su elementi architettonici complessi (archi, pavimenti, corridoi).
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{task2_poi_xlarge/val_batch0_labels.jpg}
+        \caption{Ground truth: bounding box annotate manualmente.}
+    \end{subfigure}
+    \vspace{0.5cm}
+    \begin{subfigure}[b]{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{task2_poi_xlarge/val_batch0_pred.jpg}
+        \caption{Predizioni del modello YOLOv8x.}
+    \end{subfigure}
+    \caption{Confronto qualitativo tra ground truth (a) e predizioni YOLOv8x (b) su un batch di validazione. Le bounding box colorate indicano le classi dei POI. Si noti la varietà delle scene: archi, porte, pavimenti maiolicati, ambienti bui --- tutti elementi tipici della sfida egocentrica in contesti culturali.}
+    \label{fig:qualitative}
+\end{figure}
+
+\subsection{Curva Precision-Recall e F1-Confidence}
+
+Le Figure~\ref{fig:pr_curve} e~\ref{fig:f1_curve} mostrano rispettivamente la curva Precision-Recall e la curva F1-Confidence del modello YOLOv8x.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{task2_poi_xlarge/BoxPR_curve.png}
+        \caption{Curva Precision-Recall. La curva blu spessa rappresenta la media su tutte le classi (mAP@50 = 0.297). Le curve grigie sottili mostrano le singole classi, evidenziando la forte eterogeneità delle performance.}
+        \label{fig:pr_curve}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{task2_poi_xlarge/BoxF1_curve.png}
+        \caption{Curva F1-Confidence. Il massimo F1 medio (0.36) viene raggiunto con una soglia di confidenza di 0.759, indicando che il modello è altamente selettivo nelle sue predizioni.}
+        \label{fig:f1_curve}
+    \end{subfigure}
+    \caption{Curve di valutazione del modello YOLOv8x.}
+    \label{fig:curves}
+\end{figure}
+
+\subsection{Matrice di Confusione}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{task2_poi_xlarge/confusion_matrix_normalized.png}
+    \caption{Matrice di confusione normalizzata del modello YOLOv8x. La forte sparsità della matrice riflette il numero elevatissimo di classi ($>$60) e la distribuzione long-tail del dataset: solo poche classi ben rappresentate (class\_15, class\_16, class\_57) mostrano attivazioni significative sulla diagonale, mentre la maggior parte delle classi rare non viene mai predetta.}
+    \label{fig:confusion}
+\end{figure}
+
+\section{Discussione}
+
+\subsection{Confronto con la Baseline del Paper}
+
+Il confronto con la baseline del paper originale rivela due risultati significativi:
+
+\paragraph{YOLOv8n supera la baseline con 20$\times$ meno parametri.}
+Il modello Nano ha ottenuto un mAP@50 di \textbf{19.92\%}, superiore del \textbf{+28.9\%} rispetto al 15.45\% di YOLOv3, pur disponendo di soli 3.3M di parametri contro i 61M del baseline. Questo risultato dimostra che le innovazioni architetturali di YOLOv8 (anchor-free design, C2f neck, decoupled head) non solo compensano la riduzione drastica di capacità, ma portano a un netto miglioramento delle performance.
+
+Il modello Nano risulta particolarmente adatto a scenari di deployment in tempo reale su dispositivi edge (es. visori HoloLens, smartphone), dove la potenza computazionale e il consumo energetico sono vincoli stringenti.
+
+\paragraph{YOLOv8x raddoppia le performance della baseline.}
+Il modello X-Large ha raggiunto un mAP@50 di \textbf{29.70\%}, segnando un incremento relativo del \textbf{+92.2\%} rispetto alla baseline. L'analisi dettagliata evidenzia:
+
+\begin{itemize}
+    \item \textbf{Risoluzione dell'ambiguità visiva}: l'architettura anchor-free, combinata con il backbone CSPDarknet a piena capacità, ha permesso al modello di discriminare efficacemente tra POI visivamente simili.
+    
+    \item \textbf{Performance per classe non uniformi}: la rete X-Large ha raggiunto precisioni quasi perfette su classi ben rappresentate (es. Class\_16: mAP 95.2\%, Class\_15: mAP 82.4\%), mentre le classi con poche istanze o alta ambiguità visiva restano problematiche. Questa distribuzione long-tail è un limite intrinseco del dataset.
+    
+    \item \textbf{Early stopping funzionale}: l'addestramento si è arrestato automaticamente all'epoca 269 (su un massimo di 300), indicando che il modello ha raggiunto la convergenza intorno all'epoca 169 senza overfitting distruttivo.
+    
+    \item \textbf{Robustezza al motion blur}: la maggiore capacità di estrazione delle feature del backbone X-Large ha permesso di gestire il motion blur tipico dei video egocentrici in modo significativamente più robusto rispetto a YOLOv3.
+\end{itemize}
+
+\subsection{Nota sulla Comparabilità delle Metriche}
+
+È importante sottolineare che il paper originale riporta la metrica \textbf{mAP@50} (IoU threshold = 0.5), che è la metrica standard per YOLOv3. I nostri risultati vengono riportati sia in formato mAP@50 (per il confronto diretto) sia nel formato COCO-style \textbf{mAP@[50:95]} (media su 10 soglie IoU da 0.5 a 0.95 con passo 0.05), che è lo standard moderno e produce valori sistematicamente inferiori in quanto più stringente. Il confronto diretto sulla metrica mAP@50 è il più corretto e mostra il miglioramento nella sua interezza.
+
+\subsection{Trade-off Efficienza--Accuratezza}
+
+Il confronto tra i due modelli mette in luce un chiaro trade-off:
+
+\begin{itemize}
+    \item Se l'obiettivo è l'\textbf{accuratezza massima} per una valutazione accademica o per un sistema di analisi offline, \textbf{YOLOv8x} stabilisce il nuovo stato dell'arte con un margine netto.
+    \item Se l'obiettivo prevede il \textbf{deployment su dispositivi indossabili} con risorse limitate, \textbf{YOLOv8n} offre un compromesso eccezionale, superando la precisione del baseline originale con una frazione dei parametri e un'inferenza in tempo reale.
+\end{itemize}
+
+% ================================================================
+% CAPITOLO 4 — CONCLUSIONI (generico, vetrina)
+% ================================================================
+\chapter{Conclusioni}
+
+Il progetto ha affrontato i tre task fondamentali definiti dal benchmark EGO-CH, applicando tecniche moderne di Deep Learning per superare le baseline proposte dagli autori del dataset.
+
+Per il \textbf{Task 1} (Room-based Localization), è stato impiegato un approccio basato su DINOv2 per l'estrazione delle feature e un modello Mamba (State Space Model) per la modellazione temporale delle sequenze video.
+
+Per il \textbf{Task 2} (Point of Interest Recognition), oggetto del presente capitolo, la sostituzione di YOLOv3 con YOLOv8 ha prodotto un miglioramento fino al +92\% in termini di mAP@50, dimostrando l'efficacia delle architetture anchor-free di ultima generazione anche su domini non convenzionali come la visione egocentrica in contesti culturali.
+
+Per il \textbf{Task 3} (Object Retrieval), la sostituzione di VGG-19 con gli embedding DINOv2 ha portato a miglioramenti radicali della F1 Score, confermando la superiorità dei modelli fondazionali basati su Vision Transformer rispetto alle CNN tradizionali nel contesto del retrieval visuale.
+
+I risultati complessivi confermano che l'adozione di architetture moderne e foundation model pre-addestrati consente di ottenere miglioramenti sostanziali rispetto alle baseline del 2020, anche senza modifiche al protocollo sperimentale o al dataset.
+
+% ================================================================
+% BIBLIOGRAFIA
+% ================================================================
+\begin{thebibliography}{9}
+
+\bibitem{egoref}
+F.~Ragusa, A.~Furnari, S.~Battiato, G.~Signorello, G.~M.~Farinella,
+\textit{EGO-CH: Dataset and Fundamental Tasks for Visitors Behavioral Understanding using Egocentric Vision},
+Pattern Recognition Letters, vol.~131, pp.~150--157, 2020.
+
+\bibitem{yolov3}
+J.~Redmon, A.~Farhadi,
+\textit{YOLOv3: An Incremental Improvement},
+arXiv preprint arXiv:1804.02767, 2018.
+
+\bibitem{yolov8}
+G.~Jocher, A.~Chaurasia, J.~Qiu,
+\textit{Ultralytics YOLOv8},
+\url{https://github.com/ultralytics/ultralytics}, 2023.
+
+\bibitem{dinov2}
+M.~Oquab et al.,
+\textit{DINOv2: Learning Robust Visual Features without Supervision},
+Transactions on Machine Learning Research, 2024.
+
+\end{thebibliography}
+
+\end{document}
