@@ -20,7 +20,7 @@ import numpy as np
 
 
 class Task1LightningModule(L.LightningModule):
-    def __init__(self, model, num_classes, lr=1e-3, weight_decay=1e-4, max_epochs=50):
+    def __init__(self, model, num_classes, lr=1e-3, weight_decay=1e-4, max_epochs=50, label_smoothing=0.0):
         super().__init__()
         self.model = model
         self.num_classes = num_classes
@@ -29,7 +29,8 @@ class Task1LightningModule(L.LightningModule):
         self.max_epochs = max_epochs
         
         # ignore_index=-100 → ignora i frame paddati
-        self.loss_fn = torch.nn.CrossEntropyLoss(ignore_index=-100)
+        # label_smoothing → riduce l'overfitting penalizzando la confidenza eccessiva
+        self.loss_fn = torch.nn.CrossEntropyLoss(ignore_index=-100, label_smoothing=label_smoothing)
         
         # Accumulatori per le metriche
         self._val_preds = []
@@ -114,6 +115,10 @@ def main():
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--weight_decay", type=float, default=1e-4)
     parser.add_argument("--num_workers", type=int, default=4)
+    parser.add_argument("--label_smoothing", type=float, default=0.0,
+                        help="Label smoothing per CrossEntropyLoss (consigliato: 0.1)")
+    parser.add_argument("--patience", type=int, default=15,
+                        help="Patience per EarlyStopping (consigliato: 20)")
     
     # Output
     parser.add_argument("--output_dir", type=str,
@@ -154,10 +159,11 @@ def main():
         model = LSTMRoomLocalizer(input_dim=384, hidden_dim=args.d_model,
                                   num_classes=num_classes, dropout=args.dropout)
     
-    # ── Lightning Module ────────────────────────────────────────────────────
+    # ── Lightning Module ────────────────────────────────────────────────────────
     lit_model = Task1LightningModule(
         model=model, num_classes=num_classes,
-        lr=args.lr, weight_decay=args.weight_decay, max_epochs=args.epochs
+        lr=args.lr, weight_decay=args.weight_decay,
+        max_epochs=args.epochs, label_smoothing=args.label_smoothing
     )
     
     # ── Logger & Callbacks ──────────────────────────────────────────────────
@@ -177,7 +183,7 @@ def main():
     )
     
     early_stop_cb = EarlyStopping(
-        monitor="val/ASF1", mode="max", patience=15, verbose=True
+        monitor="val/ASF1", mode="max", patience=args.patience, verbose=True
     )
     
     # ── Trainer ────────────────────────────────────────────────────────────

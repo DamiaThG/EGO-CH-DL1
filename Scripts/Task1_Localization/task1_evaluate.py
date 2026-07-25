@@ -12,13 +12,19 @@ from Scripts.Task1_Localization.task1_dataset import Task1FeatureDataset
 from Scripts.Task1_Localization.task1_metrics import compute_ff1, compute_asf1
 from sklearn.metrics import f1_score
 
+# Valori baseline del paper (VGG19 + KNN)
+PAPER_BASELINES = {
+    "bellomo":   {"ff1": 0.81, "asf1": 0.59},
+    "monastero": {"ff1": 0.68, "asf1": 0.40},
+}
 
-def evaluate(checkpoint_path, test_dir, model_type="mamba"):
+
+def evaluate(checkpoint_path, test_dir, dataset="bellomo"):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     # Carica dataset
-    dataset = Task1FeatureDataset(test_dir)
-    num_classes = dataset.num_classes
+    dataset_obj = Task1FeatureDataset(test_dir)
+    num_classes = dataset_obj.num_classes
     
     # Carica modello dal checkpoint Lightning
     from Scripts.Task1_Localization.task1_train import Task1LightningModule
@@ -32,8 +38,8 @@ def evaluate(checkpoint_path, test_dir, model_type="mamba"):
     all_preds, all_labels = [], []
     
     with torch.no_grad():
-        for i in range(len(dataset)):
-            features, labels = dataset[i]
+        for i in range(len(dataset_obj)):
+            features, labels = dataset_obj[i]
             features = features.unsqueeze(0).to(device)    # [1, T, 384]
             logits = model(features)                        # [1, T, num_classes]
             preds = logits.argmax(dim=-1).squeeze(0)       # [T]
@@ -58,7 +64,8 @@ def evaluate(checkpoint_path, test_dir, model_type="mamba"):
                             average=None, zero_division=0)
     
     print("\n" + "="*60)
-    print(f"RISULTATI VALUTAZIONE — {checkpoint_path}")
+    print(f"RISULTATI VALUTAZIONE — {Path(checkpoint_path).name}")
+    print(f"Dataset: {dataset.upper()}")
     print("="*60)
     print(f"{'Room':<30} {'FF1':>8}")
     print("-"*40)
@@ -71,23 +78,35 @@ def evaluate(checkpoint_path, test_dir, model_type="mamba"):
     print("="*60)
     
     # Confronto con baseline del paper
-    print("\n--- CONFRONTO CON BASELINE DEL PAPER (VGG19+KNN) ---")
-    print(f"{'Metrica':<15} {'Nostra':<10} {'Paper':<10} {'Delta':>8}")
-    
-    # Questi valori andrebbero parametrizzati per Bellomo o Monastero
-    paper_ff1_bellomo = 0.81
-    paper_asf1_bellomo = 0.59
-    
-    print(f"{'FF1':<15} {ff1:<10.4f} {paper_ff1_bellomo:<10.4f} {ff1-paper_ff1_bellomo:>+8.4f}")
-    print(f"{'ASF1':<15} {asf1:<10.4f} {paper_asf1_bellomo:<10.4f} {asf1-paper_asf1_bellomo:>+8.4f}")
+    baseline = PAPER_BASELINES.get(dataset.lower(), None)
+    if baseline:
+        paper_ff1  = baseline["ff1"]
+        paper_asf1 = baseline["asf1"]
+        print(f"\n--- CONFRONTO CON BASELINE DEL PAPER (VGG19+KNN) [{dataset.upper()}] ---")
+        print(f"{'Metrica':<15} {'Nostra':<10} {'Paper':<10} {'Delta':>8}")
+        print(f"{'FF1':<15} {ff1:<10.4f} {paper_ff1:<10.4f} {ff1-paper_ff1:>+8.4f}")
+        print(f"{'ASF1':<15} {asf1:<10.4f} {paper_asf1:<10.4f} {asf1-paper_asf1:>+8.4f}")
+        
+        if ff1 > paper_ff1 and asf1 > paper_asf1:
+            print("\n✓ OBIETTIVO RAGGIUNTO: Battute entrambe le metriche del paper!")
+        elif ff1 > paper_ff1 or asf1 > paper_asf1:
+            print("\n~ OBIETTIVO PARZIALE: Battuta una metrica del paper.")
+        else:
+            print("\n✗ Non ancora al di sopra del baseline del paper.")
+    else:
+        print(f"\n[!] Dataset '{dataset}' non riconosciuto. Valori disponibili: {list(PAPER_BASELINES.keys())}")
     
     return {"ff1": ff1, "asf1": asf1}
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint", type=str, required=True)
-    parser.add_argument("--test_dir", type=str, required=True)
-    parser.add_argument("--model", type=str, default="mamba")
+    parser = argparse.ArgumentParser(description="Task 1 Evaluation")
+    parser.add_argument("--checkpoint", type=str, required=True,
+                        help="Path al checkpoint .ckpt di Lightning")
+    parser.add_argument("--test_dir", type=str, required=True,
+                        help="Path alla cartella delle feature di test")
+    parser.add_argument("--dataset", type=str, default="bellomo",
+                        choices=["bellomo", "monastero"],
+                        help="Dataset di riferimento per confronto col paper")
     args = parser.parse_args()
-    evaluate(args.checkpoint, args.test_dir, args.model)
+    evaluate(args.checkpoint, args.test_dir, args.dataset)
