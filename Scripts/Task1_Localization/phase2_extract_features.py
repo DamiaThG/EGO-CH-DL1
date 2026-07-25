@@ -31,10 +31,17 @@ def load_global_mapping(filepath):
     mapping = {}
     with open(filepath, 'r') as f:
         for line in f:
-            parts = line.strip().split()
+            line = line.strip()
+            if not line:
+                continue
+                
+            parts = line.split()
             if len(parts) >= 2:
-                path = parts[0]
+                # Il path potrebbe contenere spazi (es. "6_Aula Santo Mazzarino")
+                # quindi ricongiungiamo tutte le parti tranne l'ultima (che è la label)
+                path = " ".join(parts[:-1])
                 label = int(float(parts[-1]))
+                
                 # Usa nome_cartella/nome_file.jpg come chiave per evitare collisioni
                 key = f"{os.path.basename(os.path.dirname(path))}/{os.path.basename(path)}"
                 mapping[key] = label
