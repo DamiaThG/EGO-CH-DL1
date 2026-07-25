@@ -142,16 +142,16 @@ def main():
         video_id = f"{seq_dir.parent.name}_{seq_dir.name}" if seq_dir.name.isdigit() else seq_dir.name
         
         # --- Resume Capability ---
-        # Controlla se abbiamo già estratto questa sequenza
+        # Controlla se abbiamo già estratto questa sequenza.
+        # Il file sidecar _rooms.json è leggero (pochi byte) e contiene solo le stanze uniche,
+        # così possiamo ricostruire unique_rooms senza ricaricare i pesanti .pt in memoria.
         out_file_train = Path(args.output_dir) / f"{video_id}_features.pt"
+        sidecar_file   = Path(args.output_dir) / f"{video_id}_rooms.json"
         if out_file_train.exists():
-            # Per sicurezza, leggi anche le unique rooms per mantenere la coerenza del mapping finale
-            try:
-                data = torch.load(out_file_train, map_location="cpu", weights_only=False)
-                for r in data["room_labels"].unique().tolist():
-                    unique_rooms.add(r)
-            except Exception:
-                pass
+            if sidecar_file.exists():
+                with open(sidecar_file) as sc:
+                    for r in json.load(sc):
+                        unique_rooms.add(r)
             continue
             
         jpg_files.sort(key=get_frame_idx)
@@ -230,27 +230,36 @@ def main():
             else:
                 val_features.append(feat); val_labels.append(room_id); val_ids.append(frame_idx)
                 
-        # Salva Train
+        # Salva Train (pre-stack per evitare doppio consumo di RAM)
         if len(train_features) > 0:
+            features_tensor = torch.stack(train_features); del train_features
             data = {
                 "video_id": video_id,
-                "features": torch.stack(train_features),
+                "features": features_tensor,
                 "room_labels": torch.tensor(train_labels, dtype=torch.long),
                 "frame_ids": torch.tensor(train_ids, dtype=torch.long)
             }
             out_file = Path(args.output_dir) / f"{video_id}_features.pt"
             torch.save(data, out_file)
+            del data, features_tensor
+            
+            # Salva sidecar leggero con le sole stanze uniche (usato dal resume)
+            rooms_in_seq = sorted(set(train_labels))
+            with open(Path(args.output_dir) / f"{video_id}_rooms.json", 'w') as sc:
+                json.dump(rooms_in_seq, sc)
             
         # Salva Validation
         if len(val_features) > 0 and args.val_output_dir:
+            features_tensor = torch.stack(val_features); del val_features
             data = {
                 "video_id": video_id,
-                "features": torch.stack(val_features),
+                "features": features_tensor,
                 "room_labels": torch.tensor(val_labels, dtype=torch.long),
                 "frame_ids": torch.tensor(val_ids, dtype=torch.long)
             }
             out_file_val = Path(args.val_output_dir) / f"{video_id}_features.pt"
             torch.save(data, out_file_val)
+            del data, features_tensor
 
     # Crea room mapping
     room_mapping_dict = {str(r): r for r in unique_rooms}
