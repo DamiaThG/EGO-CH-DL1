@@ -273,6 +273,13 @@ def main():
             del data, features_tensor
 
     # Crea room mapping
+    # Integra le stanze dai sidecar di tutte le sequenze già estratte
+    # (necessario quando si esegue lo script su un sottoinsieme di cartelle)
+    for sidecar in Path(args.output_dir).glob("*_rooms.json"):
+        with open(sidecar) as sc:
+            for r in json.load(sc):
+                unique_rooms.add(r)
+    
     room_mapping_dict = {str(r): r for r in unique_rooms}
     
     with open(Path(args.output_dir) / "room_mapping.json", 'w') as f:
