@@ -118,13 +118,24 @@ def main():
         val_mapping = load_global_mapping(args.val_labels_mapping)
         print(f"Caricato mapping VAL con {len(val_mapping)} entry.")
     
+    print("Scansione file jpg (potrebbe richiedere qualche minuto su filesystem di rete)...")
     image_files = list(frames_path.rglob('*.jpg'))
+    print(f"Trovati {len(image_files)} frame totali.")
     sequences = {}
     for img_file in image_files:
         parent_dir = img_file.parent
         if parent_dir not in sequences:
             sequences[parent_dir] = []
         sequences[parent_dir].append(img_file)
+    
+    # Ordina: prima le sequenze già estratte (skip istantaneo), poi quelle da processare
+    output_dir = Path(args.output_dir)
+    def sort_key(item):
+        seq_dir = item[0]
+        vid_id = f"{seq_dir.parent.name}_{seq_dir.name}" if seq_dir.name.isdigit() else seq_dir.name
+        return 0 if (output_dir / f"{vid_id}_features.pt").exists() else 1
+    sequences = dict(sorted(sequences.items(), key=sort_key))
+    print(f"Sequenze trovate: {len(sequences)} | Da estrarre: {sum(1 for s in sequences if sort_key((s, None)) == 1)}")
         
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
