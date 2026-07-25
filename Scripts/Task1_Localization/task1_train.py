@@ -144,7 +144,7 @@ def main():
     print(f"Classi: {num_classes} | Train: {len(train_loader.dataset)} seqs | Val: {len(val_loader.dataset)} seqs")
     
     # ── Modello ────────────────────────────────────────────────────────────
-    from Scripts.Task1_Localization.task1_model_mamba import MambaRoomLocalizer
+    from Scripts.Task1_Localization.models.task1_model_mamba import MambaRoomLocalizer
     model = MambaRoomLocalizer(
         input_dim=384, d_model=args.d_model, num_layers=args.num_layers,
         num_classes=num_classes, d_state=args.d_state, dropout=args.dropout
