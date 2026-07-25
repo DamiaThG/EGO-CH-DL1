@@ -141,6 +141,19 @@ def main():
         # Se la cartella si chiama solo "1" (es. Monastero Test), usa anche il nome del padre per evitare di sovrascrivere
         video_id = f"{seq_dir.parent.name}_{seq_dir.name}" if seq_dir.name.isdigit() else seq_dir.name
         
+        # --- Resume Capability ---
+        # Controlla se abbiamo già estratto questa sequenza
+        out_file_train = Path(args.output_dir) / f"{video_id}_features.pt"
+        if out_file_train.exists():
+            # Per sicurezza, leggi anche le unique rooms per mantenere la coerenza del mapping finale
+            try:
+                data = torch.load(out_file_train, map_location="cpu", weights_only=False)
+                for r in data["room_labels"].unique().tolist():
+                    unique_rooms.add(r)
+            except Exception:
+                pass
+            continue
+            
         jpg_files.sort(key=get_frame_idx)
         
         # Modalità Sequenziale (se non c'è mapping globale)
