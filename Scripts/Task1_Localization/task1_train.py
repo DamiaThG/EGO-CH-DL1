@@ -102,7 +102,7 @@ def main():
 
     # Modello
     parser.add_argument("--model", type=str, default="mamba",
-                        choices=["mamba", "mlp", "lstm"],
+                        choices=["mamba"],
                         help="Tipo di modello da usare")
     parser.add_argument("--d_model", type=int, default=256)
     parser.add_argument("--num_layers", type=int, default=4)
@@ -144,20 +144,11 @@ def main():
     print(f"Classi: {num_classes} | Train: {len(train_loader.dataset)} seqs | Val: {len(val_loader.dataset)} seqs")
     
     # ── Modello ────────────────────────────────────────────────────────────
-    if args.model == "mamba":
-        from Scripts.Task1_Localization.task1_model_mamba import MambaRoomLocalizer
-        model = MambaRoomLocalizer(
-            input_dim=384, d_model=args.d_model, num_layers=args.num_layers,
-            num_classes=num_classes, d_state=args.d_state, dropout=args.dropout
-        )
-    elif args.model == "mlp":
-        from Scripts.Task1_Localization.task1_model_baselines import MLPRoomLocalizer
-        model = MLPRoomLocalizer(input_dim=384, hidden_dim=args.d_model,
-                                 num_classes=num_classes, dropout=args.dropout)
-    elif args.model == "lstm":
-        from Scripts.Task1_Localization.task1_model_baselines import LSTMRoomLocalizer
-        model = LSTMRoomLocalizer(input_dim=384, hidden_dim=args.d_model,
-                                  num_classes=num_classes, dropout=args.dropout)
+    from Scripts.Task1_Localization.task1_model_mamba import MambaRoomLocalizer
+    model = MambaRoomLocalizer(
+        input_dim=384, d_model=args.d_model, num_layers=args.num_layers,
+        num_classes=num_classes, d_state=args.d_state, dropout=args.dropout
+    )
     
     # ── Lightning Module ────────────────────────────────────────────────────────
     lit_model = Task1LightningModule(
