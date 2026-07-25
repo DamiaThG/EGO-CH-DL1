@@ -29,6 +29,9 @@ def get_backbone(project_root):
 
 def load_global_mapping(filepath):
     mapping = {}
+    sequential_list = []
+    is_sequential = True
+    
     with open(filepath, 'r') as f:
         for line in f:
             line = line.strip()
@@ -37,6 +40,7 @@ def load_global_mapping(filepath):
                 
             parts = line.split()
             if len(parts) >= 2:
+                is_sequential = False
                 # Il path potrebbe contenere spazi (es. "6_Aula Santo Mazzarino")
                 # quindi ricongiungiamo tutte le parti tranne l'ultima (che è la label)
                 path = " ".join(parts[:-1])
@@ -45,6 +49,11 @@ def load_global_mapping(filepath):
                 # Usa nome_cartella/nome_file.jpg come chiave per evitare collisioni
                 key = f"{os.path.basename(os.path.dirname(path))}/{os.path.basename(path)}"
                 mapping[key] = label
+            elif len(parts) == 1:
+                sequential_list.append(int(float(parts[0])))
+                
+    if is_sequential and len(sequential_list) > 0:
+        return sequential_list
     return mapping
 
 def find_local_label_file(seq_dir):
@@ -151,28 +160,38 @@ def main():
             key = f"{img_path.parent.name}/{img_path.name}"
             
             if train_mapping or val_mapping:
-                # Controlla prima se è in train
-                if key in train_mapping:
-                    room_id = train_mapping[key]
+                # Gestione Liste Sequenziali passate da riga di comando
+                if isinstance(train_mapping, list) and len(train_mapping) > 0:
+                    room_id = train_mapping[i] if i < len(train_mapping) else train_mapping[-1]
                     target_split = 'train'
-                # Controlla se è in validation
-                elif key in val_mapping:
-                    room_id = val_mapping[key]
+                elif isinstance(val_mapping, list) and len(val_mapping) > 0:
+                    room_id = val_mapping[i] if i < len(val_mapping) else val_mapping[-1]
                     target_split = 'val'
                 else:
-                    # Fallback parziale
-                    found = False
-                    for k, v in train_mapping.items():
-                        if img_path.name == k.split('/')[-1]:
-                            room_id = v; target_split = 'train'; found = True; break
-                    if not found:
-                        for k, v in val_mapping.items():
-                            if img_path.name == k.split('/')[-1]:
-                                room_id = v; target_split = 'val'; found = True; break
-                    
-                    if not found:
-                        print(f"Label non trovata per {key}, ignoro frame.")
-                        continue
+                    # Gestione Dizionari Globali (Bellomo Train/Val)
+                    # Controlla prima se è in train
+                    if isinstance(train_mapping, dict) and key in train_mapping:
+                        room_id = train_mapping[key]
+                        target_split = 'train'
+                    # Controlla se è in validation
+                    elif isinstance(val_mapping, dict) and key in val_mapping:
+                        room_id = val_mapping[key]
+                        target_split = 'val'
+                    else:
+                        # Fallback parziale
+                        found = False
+                        if isinstance(train_mapping, dict):
+                            for k, v in train_mapping.items():
+                                if img_path.name == k.split('/')[-1]:
+                                    room_id = v; target_split = 'train'; found = True; break
+                        if not found and isinstance(val_mapping, dict):
+                            for k, v in val_mapping.items():
+                                if img_path.name == k.split('/')[-1]:
+                                    room_id = v; target_split = 'val'; found = True; break
+                        
+                        if not found:
+                            print(f"Label non trovata per {key}, ignoro frame.")
+                            continue
             else:
                 # Usa file locale
                 if i < len(local_labels):
