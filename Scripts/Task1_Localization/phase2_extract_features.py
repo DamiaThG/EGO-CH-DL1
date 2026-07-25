@@ -138,7 +138,9 @@ def main():
         train_features, train_labels, train_ids = [], [], []
         val_features, val_labels, val_ids = [], [], []
         
-        video_id = seq_dir.name
+        # Se la cartella si chiama solo "1" (es. Monastero Test), usa anche il nome del padre per evitare di sovrascrivere
+        video_id = f"{seq_dir.parent.name}_{seq_dir.name}" if seq_dir.name.isdigit() else seq_dir.name
+        
         jpg_files.sort(key=get_frame_idx)
         
         # Modalità Sequenziale (se non c'è mapping globale)
