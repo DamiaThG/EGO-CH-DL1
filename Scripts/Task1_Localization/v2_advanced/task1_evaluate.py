@@ -34,7 +34,7 @@ def evaluate(checkpoint_path, test_dir, dataset="bellomo", save_path=None):
     )
     
     # Carica pesi dal checkpoint Lightning
-    from Scripts.Task1_Localization.task1_train import Task1LightningModule
+    from Scripts.Task1_Localization.v2_advanced.task1_train import Task1LightningModule
     lit_model = Task1LightningModule.load_from_checkpoint(
         checkpoint_path,
         model=mamba_model,
@@ -170,4 +170,4 @@ if __name__ == "__main__":
     parser.add_argument("--save_path", type=str, default=None,
                         help="Path dove salvare il JSON con i risultati dell'esperimento")
     args = parser.parse_args()
-    evaluate(args.checkpoint, args.test_dir, args.dataset)
+    evaluate(args.checkpoint, args.test_dir, args.dataset, args.save_path)
