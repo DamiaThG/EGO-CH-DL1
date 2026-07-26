@@ -45,6 +45,8 @@ def evaluate(checkpoint_path, test_dir, dataset="bellomo"):
     
     all_preds, all_labels = [], []
     
+    from scipy.signal import medfilt
+    
     with torch.no_grad():
         for i in range(len(dataset_obj)):
             features, labels = dataset_obj[i]
@@ -52,7 +54,12 @@ def evaluate(checkpoint_path, test_dir, dataset="bellomo"):
             logits = model(features)                        # [1, T, num_classes]
             preds = logits.argmax(dim=-1).squeeze(0)       # [T]
             
-            all_preds.append(preds.cpu().numpy())
+            preds_np = preds.cpu().numpy()
+            # Post-processing: smoothing per rimuovere il flickering (causa del basso ASF1)
+            # Un kernel_size di 51 o 101 frame (circa 2-3 secondi a 30fps) liscia i picchi anomali
+            preds_smoothed = medfilt(preds_np, kernel_size=101)
+            
+            all_preds.append(preds_smoothed)
             all_labels.append(labels.numpy())
     
     # Metriche globali
