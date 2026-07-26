@@ -28,7 +28,7 @@
 
 FEATURES_DIR="data/Features/Bellomo/Training"
 VAL_DIR="data/Features/Bellomo/Validation"
-OUTPUT_DIR="Scripts/Task1_Localizationexperiments/task1_bellomo"
+OUTPUT_DIR="Scripts/Task1_Localization/experiments/task1_bellomo"
 RUN_NAME="task1_mamba_bellomo_v1"
 
 mkdir -p "$OUTPUT_DIR/logs"
