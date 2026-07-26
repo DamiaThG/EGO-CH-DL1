@@ -26,10 +26,18 @@ def evaluate(checkpoint_path, test_dir, dataset="bellomo"):
     dataset_obj = Task1FeatureDataset(test_dir)
     num_classes = dataset_obj.num_classes
     
-    # Carica modello dal checkpoint Lightning
+    # Crea il modello con i parametri usati nel training
+    from Scripts.Task1_Localization.models.task1_model_mamba import MambaRoomLocalizer
+    mamba_model = MambaRoomLocalizer(
+        input_dim=384, d_model=256, num_layers=4,
+        num_classes=num_classes, d_state=16, dropout=0.2
+    )
+    
+    # Carica pesi dal checkpoint Lightning
     from Scripts.Task1_Localization.task1_train import Task1LightningModule
     lit_model = Task1LightningModule.load_from_checkpoint(
         checkpoint_path,
+        model=mamba_model,
         map_location=device
     )
     lit_model.eval()
