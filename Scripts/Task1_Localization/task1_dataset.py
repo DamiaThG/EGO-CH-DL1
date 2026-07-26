@@ -192,10 +192,25 @@ def get_dataloaders(
     # Modalità a due cartelle separate
     if val_features_dir is not None:
         val_dir = Path(val_features_dir)
-        val_files = sorted([f.name for f in val_dir.glob("*.pt")])
-        if len(val_files) == 0:
+        val_files_raw = sorted([f.name for f in val_dir.glob("*.pt")])
+        if len(val_files_raw) == 0:
             raise FileNotFoundError(f"Nessun file .pt in {val_features_dir}")
-            
+
+        # ── Stesso dedup filter applicato alla val_dir ────────────────────
+        val_room_level = [f for f in val_files_raw if f.endswith("_features.pt") and ".mp4" not in f]
+        val_clip_only  = [f for f in val_files_raw if ".mp4" in f]
+
+        if val_room_level:
+            val_files = val_room_level
+            if val_clip_only:
+                print(
+                    f"[get_dataloaders] Val deduplication: trovati {len(val_room_level)} file room-level e "
+                    f"{len(val_clip_only)} video-clip. Uso SOLO i file room-level per evitare duplicati."
+                )
+        else:
+            val_files = val_files_raw
+            print(f"[get_dataloaders] Val: nessun file room-level, uso tutti i {len(val_files)} file .pt.")
+
         print(f"[get_dataloaders] Modalità cartelle separate: Train={features_dir}, Val={val_features_dir}")
         train_files = all_files
         train_ds = Task1FeatureDataset(features_dir, file_list=train_files)
