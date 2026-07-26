@@ -14,10 +14,14 @@
 CHECKPOINT_PATH="Scripts/Task1_Localization/experiments/task1_bellomo/checkpoints/task1_mamba_bellomo_v1_best_val/ASF1=0.9889.ckpt"
 TEST_DIR="data/Features/Bellomo/Test"
 
+RESULTS_DIR="Scripts/Task1_Localization/experiments/task1_bellomo/results"
+SAVE_PATH="${RESULTS_DIR}/eval_mamba_v1_${SLURM_JOB_ID}.json"
+
 echo "======================================================"
 echo "Valutazione Task 1: Bellomo"
 echo "  Checkpoint: $CHECKPOINT_PATH"
 echo "  Test Dir  : $TEST_DIR"
+echo "  Save Path : $SAVE_PATH"
 echo "======================================================"
 
 apptainer exec --nv \
@@ -27,7 +31,8 @@ apptainer exec --nv \
     python -m Scripts.Task1_Localization.task1_evaluate \
         --checkpoint "$CHECKPOINT_PATH" \
         --test_dir "$TEST_DIR" \
-        --dataset "bellomo"
+        --dataset "bellomo" \
+        --save_path "$SAVE_PATH"
 
 echo "======================================================"
 echo "Valutazione Completata"

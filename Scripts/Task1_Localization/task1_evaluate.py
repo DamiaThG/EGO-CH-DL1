@@ -19,7 +19,7 @@ PAPER_BASELINES = {
 }
 
 
-def evaluate(checkpoint_path, test_dir, dataset="bellomo"):
+def evaluate(checkpoint_path, test_dir, dataset="bellomo", save_path=None):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     # Carica dataset
@@ -111,7 +111,25 @@ def evaluate(checkpoint_path, test_dir, dataset="bellomo"):
     else:
         print(f"\n[!] Dataset '{dataset}' non riconosciuto. Valori disponibili: {list(PAPER_BASELINES.keys())}")
     
-    return {"ff1": ff1, "asf1": asf1}
+    # Prepara dict per salvare
+    results_dict = {
+        "checkpoint": checkpoint_path,
+        "dataset": dataset,
+        "overall_ff1": ff1,
+        "overall_asf1": asf1,
+        "per_room_ff1": {id_to_name.get(class_id, f"Class_{class_id}"): f1 for class_id, f1 in enumerate(per_class_f1)},
+        "post_processing": {"type": "median_filter", "kernel_size": 101}
+    }
+    
+    # ── Nuova logica per salvare i risultati ──
+    if args.save_path:
+        out_path = Path(args.save_path)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_path, "w") as f:
+            json.dump(results_dict, f, indent=4)
+        print(f"\n[+] Risultati salvati in modo strutturato in: {out_path}")
+        
+    return results_dict
 
 
 if __name__ == "__main__":
@@ -123,5 +141,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=str, default="bellomo",
                         choices=["bellomo", "monastero"],
                         help="Dataset di riferimento per confronto col paper")
+    parser.add_argument("--save_path", type=str, default=None,
+                        help="Path dove salvare il JSON con i risultati dell'esperimento")
     args = parser.parse_args()
     evaluate(args.checkpoint, args.test_dir, args.dataset)
