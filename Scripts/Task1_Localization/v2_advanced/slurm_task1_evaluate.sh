@@ -12,7 +12,7 @@
 #SBATCH --time=02:00:00
 
 # Trova automaticamente il checkpoint
-CHECKPOINT_PATH=$(ls Scripts/Task1_Localization/experiments/task1_bellomo_v2/checkpoints/*.ckpt | head -n 1)
+CHECKPOINT_PATH=$(find Scripts/Task1_Localization/experiments/task1_bellomo_v2/checkpoints -name "*.ckpt" | head -n 1)
 TEST_DIR="data/Features/Bellomo/Test"
 
 RESULTS_DIR="Scripts/Task1_Localization/experiments/task1_bellomo_v2/results"
