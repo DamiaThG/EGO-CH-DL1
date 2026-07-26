@@ -64,7 +64,8 @@ def evaluate(checkpoint_path, test_dir, dataset="bellomo", save_path=None):
     best_smoothed_preds = []
     
     print("\n[Ottimizzazione Smoothing Post-Processing]")
-    for k in [1, 21, 51, 101, 201, 301, 401, 501]:
+    # Aggiunti kernel molto larghi (es. fino a 3001 frame = 100 secondi)
+    for k in [1, 51, 101, 201, 301, 401, 501, 751, 1001, 1501, 2001, 3001]:
         smoothed_preds = []
         for p in all_preds:
             if k == 1:
