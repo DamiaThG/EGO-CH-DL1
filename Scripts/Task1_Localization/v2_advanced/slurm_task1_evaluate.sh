@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=task1_eval
-#SBATCH --output=Scripts/Task1_Localization/experiments/task1_bellomo/logs/eval_%j.out
-#SBATCH --error=Scripts/Task1_Localization/experiments/task1_bellomo/logs/eval_%j.err
+#SBATCH --output=Scripts/Task1_Localization/experiments/task1_bellomo_v2/logs/eval_%j.out
+#SBATCH --error=Scripts/Task1_Localization/experiments/task1_bellomo_v2/logs/eval_%j.err
 #SBATCH --account=dl-course-q2
 #SBATCH --partition=dl-course-q2
 #SBATCH --qos=gpu-xlarge
@@ -11,14 +11,16 @@
 #SBATCH --mem=16G
 #SBATCH --time=02:00:00
 
-CHECKPOINT_PATH="Scripts/Task1_Localization/experiments/task1_bellomo/checkpoints/task1_mamba_bellomo_v1_best_val/ASF1=0.9889.ckpt"
+# Trova automaticamente il checkpoint
+CHECKPOINT_PATH=$(ls Scripts/Task1_Localization/experiments/task1_bellomo_v2/checkpoints/*.ckpt | head -n 1)
 TEST_DIR="data/Features/Bellomo/Test"
 
-RESULTS_DIR="Scripts/Task1_Localization/experiments/task1_bellomo/results"
-SAVE_PATH="${RESULTS_DIR}/eval_mamba_v1_${SLURM_JOB_ID}.json"
+RESULTS_DIR="Scripts/Task1_Localization/experiments/task1_bellomo_v2/results"
+mkdir -p "$RESULTS_DIR"
+SAVE_PATH="${RESULTS_DIR}/eval_mamba_v2_${SLURM_JOB_ID}.json"
 
 echo "======================================================"
-echo "Valutazione Task 1: Bellomo"
+echo "Valutazione Task 1: Bellomo (V2 Avanzata)"
 echo "  Checkpoint: $CHECKPOINT_PATH"
 echo "  Test Dir  : $TEST_DIR"
 echo "  Save Path : $SAVE_PATH"
@@ -28,7 +30,7 @@ apptainer exec --nv \
     --bind $(pwd):/workspace \
     --pwd /workspace \
     /shared/sifs/latest.sif \
-    python -m Scripts.Task1_Localization.task1_evaluate \
+    python -m Scripts.Task1_Localization.v2_advanced.task1_evaluate \
         --checkpoint "$CHECKPOINT_PATH" \
         --test_dir "$TEST_DIR" \
         --dataset "bellomo" \
