@@ -26,9 +26,9 @@
 #   Bellomo Train ha 22 stanze → 22 sequenze room-level effettive.
 # ──────────────────────────────────────────────────────────────────────────────
 
-FEATURES_DIR="data/Task1_Features_Original/Bellomo_Train"
-VAL_DIR="data/Task1_Features_Original/Bellomo_Val"
-OUTPUT_DIR="experiments/task1_bellomo"
+FEATURES_DIR="data/Features/Bellomo/Training"
+VAL_DIR="data/Features/Bellomo/Validation"
+OUTPUT_DIR="Scripts/Task1_Localizationexperiments/task1_bellomo"
 RUN_NAME="task1_mamba_bellomo_v1"
 
 mkdir -p "$OUTPUT_DIR/logs"
