@@ -99,10 +99,11 @@ Il dataset del Monastero dei Benedettini presentava incongruenze strutturali ins
 A fronte di questi difetti fondamentali a livello di integrità del dataset, che avrebbero invalidato qualsiasi risultato sperimentale, abbiamo deciso metodologicamente di escludere il Monastero dei Benedettini. L'intera fase di ricerca, addestramento e test si è dunque focalizzata esclusivamente sul dataset di \textbf{Palazzo Bellomo}, il quale si è dimostrato robusto e coerente, comprendendo 22 stanze distinte esplorate in continuità.
 
 \subsection{Le Sfide del Dataset Palazzo Bellomo}
-Nonostante la struttura più coerente, il dataset di Palazzo Bellomo nascondeva insidie insite nella natura stessa dei video egocentrici:
+Nonostante la struttura più coerente, il dataset di Palazzo Bellomo nascondeva insidie insite nella natura stessa dei video egocentrici e nella strutturazione dei file:
 \begin{itemize}
     \item \textbf{Sbilanciamento Estremo (Long-tail distribution)}: Alcune stanze (es. corridoi di transito) venivano attraversate dal visitatore in pochissimi secondi, generando un numero esiguo di frame di addestramento; altre sale ampie (es. le gallerie d'arte) venivano esplorate per svariati minuti. Questo grave sbilanciamento delle classi rappresenta una sfida critica, poiché i modelli tendono a ignorare le classi minoritarie.
     \item \textbf{Motion Blur e Ambiguità Visiva}: I movimenti continui e bruschi della testa generano sfocature marcate. Inoltre, l'utente scatta spesso lo sguardo verso il pavimento o il soffitto (zone prive di elementi distintivi), rendendo ambiguo il contesto visivo e introducendo rumore \emph{intra-classe}.
+    \item \textbf{Duplicazione intrinseca dei Dati (Data Leakage)}: Il dataset forniva video a due livelli di granularità: intere stanze (\emph{room-level}) e brevi sotto-sequenze incentrate su singole opere (\emph{video-clip}). Essendo queste ultime ritagli dei video principali, caricare l'intero dataset avrebbe comportato l'elaborazione di migliaia di frame duplicati, falsando il training e favorendo un forte \emph{overfitting}. Per arginare il problema, abbiamo implementato un sistema di de-duplicazione dinamica nel \emph{DataLoader}, istruito per filtrare e scartare in automatico le sotto-clip ridondanti laddove fosse presente il corrispettivo file \emph{room-level} aggregato.
 \end{itemize}
 
 \section{Estrazione delle Feature: Il Ruolo di DINOv2}
@@ -130,6 +131,8 @@ Questo approccio disaccoppiato e ingegnerizzato ad-hoc ha abbattuto drasticament
 \section{Modellazione Temporale con Mamba}
 Risolto il problema dell'estrazione visiva, la sfida successiva consisteva nel modellare l'evoluzione temporale della visita. A tal fine, abbiamo adottato l'architettura \textbf{Mamba}~\cite{mamba}, un modello emergente basato sugli \emph{State Space Models} (SSM) che offre la stessa capacità espressiva dei Transformer nell'individuare relazioni a lungo raggio, ma scalando in complessità lineare ($\mathcal{O}(N)$) rispetto alla lunghezza della sequenza, qualità indispensabile per elaborare interi video di migliaia di frame in memoria GPU.
 
+Per garantire la convergenza senza incorrere in saturazioni della memoria VRAM sul cluster (considerando sequenze massime superiori ai 3000 frame per batch), l'architettura è stata meticolosamente dimensionata: un \emph{d\_model} pari a 256, 4 layer Mamba sequenziali, \emph{d\_state} fissato a 16 e un Dropout del 20\%, addestrati con una \emph{batch size} di 4.
+
 Il nostro processo di ottimizzazione temporale ha attraversato tre iterazioni principali (V1, V2 e V3), per far fronte alle problematiche intrinseche di Palazzo Bellomo.
 
 \subsection{Modello V1: Mamba Base}
@@ -140,10 +143,12 @@ Nel primo esperimento abbiamo addestrato l'architettura Mamba pura, ottimizzata 
 \end{itemize}
 
 \subsection{Modello V2: Weighted Loss e Label Smoothing}
-Per ovviare al problema dello sbilanciamento, abbiamo introdotto una \textbf{Weighted Loss}: la funzione \texttt{CrossEntropyLoss} è stata pesata inversamente rispetto alla frequenza dei frame per ogni classe. Inoltre, abbiamo applicato il \emph{Label Smoothing} (impostato a 0.1) per evitare un'eccessiva sicurezza del modello, mitigando l'overfitting. A valle della rete, abbiamo utilizzato un semplice Filtro Mediano (kernel ottimizzato a 501 frame) per stabilizzare temporalmente l'output.
+Per ovviare al problema dello sbilanciamento, abbiamo introdotto una \textbf{Weighted Loss}: la funzione \texttt{CrossEntropyLoss} è stata pesata inversamente rispetto alla frequenza dei frame per ogni classe. Inoltre, abbiamo applicato il \emph{Label Smoothing} (impostato a 0.1) per evitare un'eccessiva sicurezza del modello, mitigando l'overfitting. 
+
+A valle della rete, per stabilizzare temporalmente l'output e correggere il flickering, abbiamo utilizzato un Filtro Mediano. Piuttosto che affidarci a un iperparametro statico, abbiamo ingegnerizzato lo script di valutazione per eseguire autonomamente una ricerca empirica (\emph{grid search}) sulla dimensione del kernel del filtro, scansionando finestre temporali da 1 fino a oltre 3000 frame. Questa ottimizzazione dinamica ha permesso di individuare matematicamente il kernel ottimale (nel nostro caso 501 frame, corrispondenti a circa 16 secondi di video) che massimizzasse la complessa metrica ASF1.
 \begin{itemize}
     \item \textbf{Risultati}: \textbf{FF1 = 0.8572} (+4.72\% sul paper) e \textbf{ASF1 = 0.6194} (+2.94\% sul paper).
-    \item \textbf{Conclusioni}: Obiettivo raggiunto e superato. La V2 ha ripristinato l'accuratezza sulle classi di minoranza e si è imposta come soluzione ideale per massimizzare la coerenza temporale (ASF1).
+    \item \textbf{Conclusioni}: Obiettivo raggiunto e superato. La V2 ha ripristinato l'accuratezza sulle classi di minoranza e, grazie alla ricerca automatica del miglior kernel di smoothing, si è imposta come soluzione ideale per massimizzare la coerenza temporale (ASF1).
 \end{itemize}
 
 \subsection{Modello V3 Experimental: MS-TCN e MLP}
