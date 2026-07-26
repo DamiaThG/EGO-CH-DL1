@@ -38,7 +38,8 @@ def evaluate(checkpoint_path, test_dir, dataset="bellomo", save_path=None):
     lit_model = Task1LightningModule.load_from_checkpoint(
         checkpoint_path,
         model=mamba_model,
-        map_location=device
+        map_location=device,
+        strict=False
     )
     lit_model.eval()
     model = lit_model.model.to(device)
