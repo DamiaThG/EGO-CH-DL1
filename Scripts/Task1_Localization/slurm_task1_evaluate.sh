@@ -12,7 +12,7 @@
 #SBATCH --time=02:00:00
 
 CHECKPOINT_PATH="Scripts/Task1_Localization/experiments/task1_bellomo/checkpoints/task1_mamba_bellomo_v1_best_val/ASF1=0.9889.ckpt"
-TEST_DIR="data/Features/Bellomo/Testing"
+TEST_DIR="data/Features/Bellomo/Test"
 
 echo "======================================================"
 echo "Valutazione Task 1: Bellomo"
