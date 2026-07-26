@@ -56,7 +56,7 @@
 
 Negli ultimi anni, la convergenza tra le tecnologie indossabili (\emph{wearable devices}) e l'Intelligenza Artificiale ha aperto nuove prospettive nel campo della fruizione del patrimonio culturale (\emph{Augmented Cultural Heritage}). La \textbf{Egocentric Vision} (o \emph{First-Person Vision}, FPV) si differenzia radicalmente dalla visione artificiale classica a telecamera fissa: catturando il mondo dalla prospettiva diretta dell'utente (<<what the user sees is what the camera captures>>), offre una finestra privilegiata sulle dinamiche di esplorazione, l'attenzione visiva e il comportamento spontaneo dei visitatori all'interno di musei e siti archeologici.
 
-Il presente lavoro di tesi e ricerca si colloca nell'ambito dei progetti nazionali e regionali \textbf{VEDI} (\emph{Vision Exploitation for Data Interpretation}) e \textbf{VALUE} (\emph{Visual Analysis for Localization and Understanding of Environments}), sviluppati dall'Image Processing Laboratory (IPLab) dell'Università di Catania in collaborazione con il centro di ricerca CUTGANA e partner industriali. L'obiettivo primario di tali iniziative è la creazione di sistemi di assistenza intelligente per visitatori (es. guide virtuali contestuali ed egocentriche) e di strumenti avanzati di business intelligence per i curatori museali, capaci di analizzare in tempo reale i percorsi di visita, i tempi di permanenza di fronte alle opere e il gradimento complessivo dell'esperienza culturale.
+Il presente progetto accademico si colloca nell'ambito dei progetti nazionali e regionali \textbf{VEDI} (\emph{Vision Exploitation for Data Interpretation}) e \textbf{VALUE} (\emph{Visual Analysis for Localization and Understanding of Environments}), sviluppati dall'Image Processing Laboratory (IPLab) dell'Università di Catania in collaborazione con il centro di ricerca CUTGANA e partner industriali. L'obiettivo primario di tali iniziative è la creazione di sistemi di assistenza intelligente per visitatori (es. guide virtuali contestuali ed egocentriche) e di strumenti avanzati di business intelligence per i curatori museali, capaci di analizzare in tempo reale i percorsi di visita, i tempi di permanenza di fronte alle opere e il gradimento complessivo dell'esperienza culturale.
 
 \section{La Visione Egocentrica nei Beni Culturali: Sfide Tecniche}
 
@@ -185,95 +185,75 @@ L'analisi dei dati di EGO-CH mette in luce diverse criticità intrinseche che ha
 % ================================================================
 \chapter{Task 1 --- Room-based Localization}
 
-\section{Definizione del Problema}
-Il Task 1, denominato \emph{Room-based Localization}, consiste nell'identificare in quale stanza si trovi il visitatore, frame per frame, analizzando il video egocentrico. Poiché il video cattura l'esplorazione sequenziale degli ambienti, questo task è a tutti gli effetti un problema di \textbf{video understanding} e analisi di serie temporali, dove la coerenza temporale delle predizioni riveste un ruolo cruciale.
+\section{Definizione del Problema e Baseline di Riferimento}
+Il primo task proposto dal benchmark EGO-CH, denominato \emph{Room-based Localization}, mira a tracciare la posizione del visitatore all'interno del sito culturale, classificando l'ambiente in cui si trova istante per istante. Poiché l'esplorazione di un museo avviene in continuità, non si tratta di una semplice classificazione di immagini indipendenti, bensì di un complesso problema di \emph{video understanding}, in cui la coerenza temporale delle predizioni gioca un ruolo cruciale per evitare continui salti logici da una stanza all'altra.
 
-\section{La Baseline del Paper Originale}
-Gli autori di EGO-CH affrontano il Task 1 estraendo caratteristiche visive (feature) con \textbf{VGG19} pre-addestrato su ImageNet, per poi classificarle frame per frame utilizzando l'algoritmo K-Nearest Neighbors (KNN). Per correggere l'incoerenza temporale delle predizioni (effetto \emph{flickering}), applicano un modello di Markov Nascosto (Hidden Markov Model, HMM) come step di post-processing.
-Sul dataset del Palazzo Bellomo, la baseline del paper ottiene:
+Nel paper originale, gli autori affrontano la sfida estraendo le caratteristiche visive dei frame tramite una rete VGG19 pre-addestrata su ImageNet. La classificazione avviene poi affidandosi a un semplice K-Nearest Neighbors (K-NN), seguito da un Modello di Markov Nascosto (HMM) applicato a posteriori per "smussare" le incongruenze temporali e ridurre il \emph{flickering}. Sul dataset di Palazzo Bellomo, questa architettura di base (baseline) raggiunge un F1-Score a livello di frame (FF1) di 0.8100 e un F1-Score a livello di segmento (ASF1, che premia la stabilità temporale) di 0.5900.
+
+\section{Analisi Preliminare: La Scelta di Abbandonare il Monastero}
+Ogni progetto di deep learning solido parte da un'analisi critica dei dati a disposizione. Esaminando i due dataset forniti, ci siamo subito resi conto che i dati relativi al Monastero dei Benedettini nascondevano incongruenze strutturali troppo gravi per poter garantire un addestramento affidabile e riproducibile.
+
+In fase di esplorazione, abbiamo riscontrato un netto disallineamento nei sistemi di etichettatura: il set di addestramento utilizzava identificativi numerici per le stanze nel range $[5, 8]$, mentre i set di validazione e test presentavano classi da $0$ a $4$. Un simile mismatch impedisce di fatto qualsiasi valutazione corretta, poiché il modello verrebbe istruito su etichette inesistenti nel momento del test. Come se non bastasse, incrociando i file di ground truth, abbiamo notato l'assenza totale di un intero ambiente all'interno del training set, a fronte dei cinque ambienti previsti dalla documentazione.
+
+A fronte di queste criticità, che avrebbero inevitabilmente invalidato la valenza scientifica dei nostri esperimenti, abbiamo preso la decisione metodologica di escludere il Monastero dei Benedettini. Abbiamo così concentrato tutte le nostre risorse su \textbf{Palazzo Bellomo}, un dataset nettamente più coerente, continuo e strutturato, composto da ben 22 stanze distinte.
+
+\section{Le Sfide di Palazzo Bellomo e il Problema del Data Leakage}
+Scegliere Palazzo Bellomo non ha però significato avere la strada spianata. La natura stessa delle riprese egocentriche ha fatto emergere tre sfide principali che hanno richiesto soluzioni ingegneristiche mirate:
+
 \begin{itemize}
-    \item \textbf{FF1 (Frame-Level F1-Score)}: 0.8100
-    \item \textbf{ASF1 (Action Segment F1-Score)}: 0.5900
+    \item \textbf{Sbilanciamento Estremo}: Il tempo trascorso dal visitatore negli ambienti è fortemente eterogeneo. Corridoi e zone di passaggio compaiono nei dati solo per una manciata di secondi, mentre le sale espositive principali dominano la distribuzione con migliaia di frame. Questa \emph{long-tail distribution} rischiava di portare la rete a ignorare del tutto le stanze minoritarie.
+    \item \textbf{Rumore e Ambiguità Visiva}: I movimenti repentini del capo producono un \emph{motion blur} accentuato. Spesso l'inquadratura finisce su dettagli non informativi (il pavimento, il soffitto, porzioni di muri bianchi), rendendo la discriminazione tra ambienti visivamente simili un compito arduo.
+    \item \textbf{Duplicazione Intrinseca (Data Leakage)}: Questa è stata la problematica più subdola. Il dataset forniva sia video integrali dell'esplorazione delle stanze, sia brevi clip isolate relative a singole opere. Caricare l'intero pacchetto in addestramento avrebbe significato processare migliaia di frame duplicati (essendo le clip dei semplici ritagli dei video principali). L'addestramento ne sarebbe uscito viziato, producendo un forte \emph{overfitting}. Per risolvere la questione alla radice, abbiamo implementato un filtro dinamico all'interno del nostro \emph{DataLoader}, capace di riconoscere e scartare al volo le sotto-clip ridondanti dando priorità ai flussi \emph{room-level} aggregati.
 \end{itemize}
 
-\section{Analisi del Dataset e Sfide Iniziali}
-Il punto di partenza per il Task 1 è consistito in un'attenta analisi dei due dataset forniti dagli autori: Palazzo Bellomo e Monastero dei Benedettini. Fin dalle prime fasi di esplorazione dei dati, sono emerse criticità significative legate alla struttura e alla qualità delle annotazioni.
+\section{Estrarre l'Invisibile: L'Adozione di DINOv2}
+La baseline convoluzionale basata su VGG19 si concentra prevalentemente sul riconoscimento di texture o oggetti isolati, faticando a catturare la geometria e la profondità di un'intera stanza. Per compiere un vero salto di qualità, abbiamo deciso di rivoluzionare lo step di estrazione feature adottando \textbf{DINOv2}~\cite{dinov2}, un \emph{Vision Transformer} di ultima generazione sviluppato da Meta.
 
-\subsection{Esclusione del Monastero dei Benedettini}
-Il dataset del Monastero dei Benedettini presentava incongruenze strutturali insormontabili che lo rendevano del tutto inadatto per un addestramento e una valutazione affidabili. Durante la fase di esplorazione preliminare dei dati sono emerse le seguenti gravi anomalie:
-\begin{itemize}
-    \item \textbf{Incompatibilità dei sistemi di etichettatura (Label Mismatch)}: Analizzando i file di ground truth, abbiamo scoperto che il set di \emph{Training} assegnava alle stanze etichette numeriche nel range $[5, 8]$, mentre i set di \emph{Validation} e \emph{Test} utilizzavano un sistema completamente disgiunto nel range $[0, 4]$. Questo disallineamento rende impossibile la valutazione zero-shot di un modello, poiché verrebbe addestrato a predire classi inesistenti nel test set.
-    \item \textbf{Dati mancanti nel set di addestramento}: Il README ufficiale del dataset dichiara la presenza di 5 ambienti (\emph{environments}) per il Monastero. Tuttavia, la cartella del Training set fornita contiene solo 4 stanze (etichettate 5, 6, 7 e 8). La presenza di 5 classi uniche (da 0 a 4) nei file di Test e Validation conferma che un intero ambiente è stato inavvertitamente omesso dal set di training distribuito.
-    \item \textbf{Mancanza di coerenza temporale continua}: A differenza di Palazzo Bellomo, che offre sequenze video intere associate a un'etichetta univoca della stanza, i video del Monastero risultavano frammentati e organizzati più in ottica di \emph{Point of Interest} che di vera e propria esplorazione ambientale continua.
-\end{itemize}
-A fronte di questi difetti fondamentali a livello di integrità del dataset, che avrebbero invalidato qualsiasi risultato sperimentale, abbiamo deciso metodologicamente di escludere il Monastero dei Benedettini. L'intera fase di ricerca, addestramento e test si è dunque focalizzata esclusivamente sul dataset di \textbf{Palazzo Bellomo}, il quale si è dimostrato robusto e coerente, comprendendo 22 stanze distinte esplorate in continuità.
+Grazie all'apprendimento auto-supervisionato (Self-Supervised Learning) su milioni di immagini, DINOv2 non si limita a riconoscere cosa c'è nell'immagine, ma ne comprende il layout spaziale complessivo. Questa capacità di cogliere l'atmosfera globale dell'ambiente lo ha reso il candidato perfetto per il nostro scopo. Abbiamo utilizzato la variante \texttt{ViT-S/14}, che comprime ogni frame in un vettore semantico iper-denso di 384 dimensioni.
 
-\subsection{Le Sfide del Dataset Palazzo Bellomo}
-Nonostante la struttura più coerente, il dataset di Palazzo Bellomo nascondeva insidie insite nella natura stessa dei video egocentrici e nella strutturazione dei file:
-\begin{itemize}
-    \item \textbf{Sbilanciamento Estremo (Long-tail distribution)}: Alcune stanze (es. corridoi di transito) venivano attraversate dal visitatore in pochissimi secondi, generando un numero esiguo di frame di addestramento; altre sale ampie (es. le gallerie d'arte) venivano esplorate per svariati minuti. Questo grave sbilanciamento delle classi rappresenta una sfida critica, poiché i modelli tendono a ignorare le classi minoritarie.
-    \item \textbf{Motion Blur e Ambiguità Visiva}: I movimenti continui e bruschi della testa generano sfocature marcate. Inoltre, l'utente scatta spesso lo sguardo verso il pavimento o il soffitto (zone prive di elementi distintivi), rendendo ambiguo il contesto visivo e introducendo rumore \emph{intra-classe}.
-    \item \textbf{Duplicazione intrinseca dei Dati (Data Leakage)}: Il dataset forniva video a due livelli di granularità: intere stanze (\emph{room-level}) e brevi sotto-sequenze incentrate su singole opere (\emph{video-clip}). Essendo queste ultime ritagli dei video principali, caricare l'intero dataset avrebbe comportato l'elaborazione di migliaia di frame duplicati, falsando il training e favorendo un forte \emph{overfitting}. Per arginare il problema, abbiamo implementato un sistema di de-duplicazione dinamica nel \emph{DataLoader}, istruito per filtrare e scartare in automatico le sotto-clip ridondanti laddove fosse presente il corrispettivo file \emph{room-level} aggregato.
-\end{itemize}
+Tuttavia, passare al setaccio milioni di frame ha imposto una rivisitazione dell'architettura software. I primi tentativi di estrazione in memoria saturavano quasi istantaneamente la RAM dei nodi del cluster, portando al crash dei processi (errore \emph{Out-Of-Memory}). Abbiamo quindi progettato una pipeline offline robusta, basata sullo svuotamento esplicito della memoria a intervalli regolari e su un sistema di checkpointing (\emph{resume}) tramite file sidecar. Questo ci ha permesso di elaborare i video in modo incrementale, mettendoci al riparo da eventuali preemption del cluster di calcolo.
 
-\section{Estrazione delle Feature: Il Ruolo di DINOv2}
-Per affrontare le estreme ambiguità visive dei video egocentrici, era imperativo abbandonare l'estrattore statico utilizzato nel paper originale (VGG19, una convoluzionale addestrata per classificazione di immagini) a favore di un foundation model capace di una comprensione semantica profonda e globale della scena. La scelta è ricaduta su \textbf{DINOv2}~\cite{dinov2}, un modello \emph{Vision Transformer} sviluppato da Meta AI.
+\section{Mamba: Modellazione Temporale a Complessità Lineare}
+Ottenute le feature compresse da DINOv2, il tassello mancante era la modellazione dell'evoluzione temporale della visita. I tradizionali Transformer, sebbene potentissimi, soffrono di una complessità quadratica rispetto alla lunghezza della sequenza, rendendoli impraticabili per video di migliaia di frame.
 
-\subsection{Perché DINOv2?}
-A differenza delle classiche reti addestrate in modo supervisionato su ImageNet (il cui obiettivo è riconoscere l'oggetto dominante), DINOv2 è stato addestrato tramite \textbf{Self-Supervised Learning} (apprendimento auto-supervisionato) su un gigantesco corpus di 142 milioni di immagini non etichettate. 
-Questo paradigma conferisce al modello proprietà uniche per il nostro scopo:
-\begin{itemize}
-    \item \textbf{Comprensione Spaziale e Geometrica}: DINOv2 apprende nativamente la geometria della scena, il layout spaziale e la profondità, catturando l'atmosfera globale della stanza piuttosto che limitarsi a riconoscere singoli oggetti. Questo lo rende l'estrattore perfetto per distinguere stanze diverse.
-    \item \textbf{Robustezza al Dominio Egocentrico}: Essendo basato su architettura Transformer e addestrato su matching di patch locali e globali, il modello risulta incredibilmente resiliente alle occlusioni parziali e al motion blur.
-\end{itemize}
+Abbiamo trovato la quadratura del cerchio nell'architettura \textbf{Mamba}~\cite{mamba}. Basato sugli State Space Models (SSM), Mamba offre un'espressività paragonabile ai Transformer nel catturare dipendenze a lungo raggio, ma scalando con una complessità strettamente lineare ($\mathcal{O}(N)$). Per scongiurare saturazioni della VRAM (considerando sequenze temporali che potevano superare i 3000 frame), abbiamo dimensionato la rete con grande attenzione: \emph{d\_model} a 256, 4 layer sequenziali, \emph{d\_state} a 16 e un Dropout del 20\%, addestrando con batch piccoli da 4 elementi.
 
-\subsection{Pipeline di Estrazione Offline e Ottimizzazione della Memoria}
-Per massimizzare l'efficienza computazionale, l'estrazione delle feature è stata concepita come uno step di preprocessing \emph{offline}. I video sono stati processati frame per frame passando le immagini attraverso la variante \texttt{dinov2\_vits14} (modello Small con patch di dimensione 14). Il Vision Transformer ha restituito, per ciascun frame, un \emph{embedding} denso di dimensione \textbf{384}.
-I tensori estratti, di forma $(T, 384)$ dove $T$ è il numero di frame del video, sono stati salvati permanentemente su disco in formato \texttt{.pt} (PyTorch tensor).
+Il percorso verso l'architettura definitiva ha attraversato tre fasi di sperimentazione, che illustrano il nostro processo iterativo di problem-solving.
 
-La natura esplorativa continua dei video egocentrici ha imposto severe sfide ingegneristiche in fase di estrazione, in particolar modo a causa delle dimensioni di alcune sequenze di test, composte da decine di migliaia di frame. I primi approcci \emph{naïve}, basati sull'accumulo in RAM delle feature in liste Python seguite da un \texttt{torch.stack()}, causavano catastrofici errori di \emph{Out-Of-Memory} (OOM) sul cluster di calcolo, esaurendo in pochi secondi svariate decine di gigabyte di memoria.
-Per ovviare a questo problema infrastrutturale, lo script di estrazione è stato riprogettato con una complessa strategia di gestione della memoria, che prevede la pre-allocazione dei tensori e lo svuotamento esplicito della RAM ad ogni salvataggio parziale.
+\subsection{Dall'Esperimento Base (V1) al Modello Ottimo (V2)}
+Nel primissimo test (\textbf{V1}), abbiamo addestrato l'architettura Mamba pura con una normale \texttt{CrossEntropyLoss}. I risultati iniziali sono stati agrodolci: un buon FF1 ($\sim$0.8098) accompagnato però da un disastroso ASF1 ($\sim$0.4079). Il modello, influenzato dallo sbilanciamento dei dati, azzerava la precisione sulle stanze minori e produceva continue predizioni discontinue (flickering).
 
-Inoltre, dato l'elevato tempo richiesto per l'inferenza di milioni di frame tramite DINOv2, abbiamo implementato un sistema di \emph{resume} robusto basato su file sidecar leggeri (\texttt{\_rooms.json}). Questo meccanismo ci ha garantito che, in caso di interruzioni forzate o preemption sul cluster, il processo potesse riprendere fluidamente saltando le cartelle già elaborate e ricostruendo dinamicamente le mappature delle stanze, ottimizzando al contempo l'utilizzo del filesystem di rete (NFS).
+Per correggere il tiro abbiamo sviluppato la versione \textbf{V2}. Abbiamo introdotto una \textbf{Weighted Loss} (pesando inversamente la funzione di costo rispetto alla frequenza dei frame) abbinata a un \emph{Label Smoothing} dello 0.1 per mitigare l'overconfidence della rete. 
+Ma la vera svolta sulla coerenza temporale l'abbiamo ottenuta ripensando il post-processing. Invece di tirare a indovinare un valore per il kernel del Filtro Mediano a valle della rete, abbiamo ingegnerizzato lo script di valutazione per eseguire una \emph{grid search} autonoma. Lo script ha scansionato ampiezze temporali da 1 fino a 3000 frame, determinando in modo analitico che un kernel da 501 frame (circa 16 secondi di esplorazione in tempo reale) massimizzava proprio la complessa metrica ASF1.
+Con questa configurazione, la V2 ha infranto la baseline: \textbf{FF1 a 0.8572} e \textbf{ASF1 a 0.6194}.
 
-Questo approccio disaccoppiato e ingegnerizzato ad-hoc ha abbattuto drasticamente i tempi di addestramento: i successivi modelli di \emph{sequence modeling} hanno potuto processare istantaneamente vettori semantici iper-compressi, coerenti e altamente informativi, senza dover ricalcolare i pesanti gradienti del Vision Transformer ad ogni iterazione di training.
+\subsection{Verso un Approccio End-to-End (V3 Experimental)}
+Spinti dalla curiosità di eliminare del tutto la dipendenza da un filtro mediano deterministico (un approccio manuale), abbiamo concepito un'ultima variante sperimentale, la \textbf{V3}. 
+In questa architettura abbiamo premesso a Mamba un \emph{Multi-Layer Perceptron (MLP)} per proiettare le feature di DINOv2 in uno spazio più ricco, e sostituito il post-processing con una testa basata su convoluzioni temporali dilatate (Multi-Stage Temporal Convolutional Network, \textbf{MS-TCN}). L'obiettivo era insegnare alla rete a eseguire lo "smoothing" autonomamente durante l'addestramento.
 
-\section{Modellazione Temporale con Mamba}
-Risolto il problema dell'estrazione visiva, la sfida successiva consisteva nel modellare l'evoluzione temporale della visita. A tal fine, abbiamo adottato l'architettura \textbf{Mamba}~\cite{mamba}, un modello emergente basato sugli \emph{State Space Models} (SSM) che offre la stessa capacità espressiva dei Transformer nell'individuare relazioni a lungo raggio, ma scalando in complessità lineare ($\mathcal{O}(N)$) rispetto alla lunghezza della sequenza, qualità indispensabile per elaborare interi video di migliaia di frame in memoria GPU.
+I risultati hanno delineato un trade-off affascinante: la V3 ha spinto la precisione pura (FF1) al \textbf{0.8718}, dimostrandosi una macchina da classificazione formidabile. Tuttavia, l'ASF1 è lievemente flesso a 0.5815, poiché il campo recettivo della nostra rete convoluzionale a 4 layer abbracciava solo 31 frame contigui (circa 1 secondo). Una finestra troppo stretta per appianare le transizioni più lente, laddove il massiccio kernel matematico da 501 frame della V2 risultava imbattibile.
 
-Per garantire la convergenza senza incorrere in saturazioni della memoria VRAM sul cluster (considerando sequenze massime superiori ai 3000 frame per batch), l'architettura è stata meticolosamente dimensionata: un \emph{d\_model} pari a 256, 4 layer Mamba sequenziali, \emph{d\_state} fissato a 16 e un Dropout del 20\%, addestrati con una \emph{batch size} di 4.
+\section{Discussione e Sintesi dei Risultati}
+Le nostre sperimentazioni dimostrano che per l'elaborazione di flussi egocentrici complessi l'uso combinato di foundation model auto-supervisionati e reti a stato spaziale surclassa nettamente gli approcci puramente convoluzionali e statici.
 
-Il nostro processo di ottimizzazione temporale ha attraversato tre iterazioni principali (V1, V2 e V3), per far fronte alle problematiche intrinseche di Palazzo Bellomo.
+La Tabella~\ref{tab:task1_comparison} riassume il percorso evolutivo delle nostre architetture. Mentre la V3 rappresenta l'apice dell'interpretazione semantica frame-by-frame (miglior FF1 assoluto), consideriamo il modello \textbf{V2} il vero successore della baseline. Grazie alla sua capacità di mantenere la stabilità logica dell'utente nel tempo (miglior ASF1), la V2 incarna la soluzione ideale per applicazioni di monitoraggio spaziale all'interno di poli culturali.
 
-\subsection{Modello V1: Mamba Base}
-Nel primo esperimento abbiamo addestrato l'architettura Mamba pura, ottimizzata tramite una \texttt{CrossEntropyLoss} standard. 
-\begin{itemize}
-    \item \textbf{Risultato}: La rete ha ottenuto un FF1 pari a $\sim$0.8098 (in linea col paper) ma un ASF1 di soli $\sim$0.4079 (drasticamente inferiore).
-    \item \textbf{Criticità}: A causa del grave sbilanciamento delle classi nel set di training, la loss non pesata portava il modello a ignorare del tutto gli ambienti meno frequenti, ottenendo 0\% di accuratezza su molte stanze. Inoltre, la pura inferenza per-frame ha causato un forte flickering, abbassando notevolmente l'ASF1.
-\end{itemize}
+\begin{table}[htbp]
+\centering
+\caption{Confronto riassuntivo delle performance (Palazzo Bellomo) tra la baseline del paper e le tre iterazioni architetturali proposte nel nostro studio.}
+\label{tab:task1_comparison}
+\begin{tabular}{llcc}
+\toprule
+\textbf{Modello} & \textbf{Caratteristiche Chiave} & \textbf{FF1} & \textbf{ASF1} \\
+\midrule
+Baseline (Paper) & VGG19 + K-NN + HMM post-processing & 0.8100 & 0.5900 \\
+Mamba V1 & Mamba puro (Loss Standard) & 0.8098 & 0.4079 \\
+\textbf{Mamba V2} & \textbf{DINOv2 + Weighted Loss + Dynamic Median Filter} & \textbf{0.8572} & \textbf{0.6194} \\
+Mamba V3 (Exp) & DINOv2 + MLP + MS-TCN (End-to-End) & \textbf{0.8718} & 0.5815 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-\subsection{Modello V2: Weighted Loss e Label Smoothing}
-Per ovviare al problema dello sbilanciamento, abbiamo introdotto una \textbf{Weighted Loss}: la funzione \texttt{CrossEntropyLoss} è stata pesata inversamente rispetto alla frequenza dei frame per ogni classe. Inoltre, abbiamo applicato il \emph{Label Smoothing} (impostato a 0.1) per evitare un'eccessiva sicurezza del modello, mitigando l'overfitting. 
-
-A valle della rete, per stabilizzare temporalmente l'output e correggere il flickering, abbiamo utilizzato un Filtro Mediano. Piuttosto che affidarci a un iperparametro statico, abbiamo ingegnerizzato lo script di valutazione per eseguire autonomamente una ricerca empirica (\emph{grid search}) sulla dimensione del kernel del filtro, scansionando finestre temporali da 1 fino a oltre 3000 frame. Questa ottimizzazione dinamica ha permesso di individuare matematicamente il kernel ottimale (nel nostro caso 501 frame, corrispondenti a circa 16 secondi di video) che massimizzasse la complessa metrica ASF1.
-\begin{itemize}
-    \item \textbf{Risultati}: \textbf{FF1 = 0.8572} (+4.72\% sul paper) e \textbf{ASF1 = 0.6194} (+2.94\% sul paper).
-    \item \textbf{Conclusioni}: Obiettivo raggiunto e superato. La V2 ha ripristinato l'accuratezza sulle classi di minoranza e, grazie alla ricerca automatica del miglior kernel di smoothing, si è imposta come soluzione ideale per massimizzare la coerenza temporale (ASF1).
-\end{itemize}
-
-\subsection{Modello V3 Experimental: MS-TCN e MLP}
-Con l'intento di rimuovere la dipendenza dal post-processing manuale (il filtro mediano) ed estrarre la massima precisione possibile, abbiamo progettato un'evoluzione \emph{end-to-end}. La V3 introduce:
-\begin{itemize}
-    \item Un \textbf{Multi-Layer Perceptron (MLP)} in ingresso (Lineare $\rightarrow$ GELU $\rightarrow$ Lineare) per una proiezione più espressiva delle feature di DINOv2.
-    \item Una testa di classificazione basata su \textbf{Multi-Stage Temporal Convolutional Network (MS-TCN)} con convoluzioni dilatate (kernel 3, dilation 1, 2, 4, 8) in puro PyTorch, permettendo al modello di imparare nativamente lo smoothing guardando i frame adiacenti durante il training.
-\end{itemize}
-\begin{itemize}
-    \item \textbf{Risultati}: \textbf{FF1 = 0.8718} (+6.18\% sul paper) e \textbf{ASF1 = 0.5815}.
-    \item \textbf{Analisi del Trade-off}: La V3 ha raggiunto uno sbalorditivo FF1 vicino al 90\%, dimostrando una capacità superba di interpretare l'ambiente frame per frame (superando lo stato dell'arte). L'ASF1 è leggermente calato rispetto alla V2 poiché il campo recettivo della nostra MS-TCN a 4 layer (31 frame, circa 1 secondo) non era sufficientemente ampio da livellare transizioni lente (10-15 secondi), compito nel quale il filtro mediano da 501 frame eccelleva. 
-\end{itemize}
-
-\section{Discussione}
-I risultati conseguiti dimostrano l'inadeguatezza degli approcci statici (VGG19) per il task di Room Localization, evidenziando la forza delle architetture di sequence modeling come Mamba. La nostra ricerca ha prodotto due modelli complementari: la \textbf{V2} (il campione di stabilità temporale, con il miglior ASF1) e la \textbf{V3} (il campione di classificazione pura, con il miglior FF1 assoluto), fornendo un'analisi completa sul trade-off tra smoothing post-processing (filtri larghi) e smoothing neurale (convoluzioni temporali con campo recettivo limitato).
 
 % ================================================================
 % CAPITOLO 4 — TASK 2: POINT OF INTEREST RECOGNITION (dettagliato)
