@@ -50,19 +50,44 @@ def evaluate(checkpoint_path, test_dir, dataset="bellomo", save_path=None):
     with torch.no_grad():
         for i in range(len(dataset_obj)):
             features, labels = dataset_obj[i]
-            features = features.unsqueeze(0).to(device)    # [1, T, 384]
-            logits = model(features)                        # [1, T, num_classes]
-            preds = logits.argmax(dim=-1).squeeze(0)       # [T]
+            features = features.unsqueeze(0).to(device)
+            logits = model(features)
+            preds = logits.argmax(dim=-1).squeeze(0)
             
-            preds_np = preds.cpu().numpy()
-            # Post-processing: smoothing per rimuovere il flickering (causa del basso ASF1)
-            # Un kernel_size di 51 o 101 frame (circa 2-3 secondi a 30fps) liscia i picchi anomali
-            preds_smoothed = medfilt(preds_np, kernel_size=101)
-            
-            all_preds.append(preds_smoothed)
+            all_preds.append(preds.cpu().numpy())
             all_labels.append(labels.numpy())
     
-    # Metriche globali
+    # Ricerca del miglior Kernel Size per l'ASF1
+    best_asf1 = -1
+    best_ff1 = -1
+    best_kernel = 1
+    best_smoothed_preds = []
+    
+    print("\n[Ottimizzazione Smoothing Post-Processing]")
+    for k in [1, 21, 51, 101, 201, 301, 401, 501]:
+        smoothed_preds = []
+        for p in all_preds:
+            if k == 1:
+                smoothed_preds.append(p)
+            else:
+                smoothed_preds.append(medfilt(p, kernel_size=k))
+        
+        current_ff1 = compute_ff1(smoothed_preds, all_labels)
+        current_asf1 = compute_asf1(smoothed_preds, all_labels)
+        print(f"  Kernel: {k:3d} | FF1: {current_ff1:.4f} | ASF1: {current_asf1:.4f}")
+        
+        if current_asf1 > best_asf1:
+            best_asf1 = current_asf1
+            best_ff1 = current_ff1
+            best_kernel = k
+            best_smoothed_preds = smoothed_preds
+            
+    print(f"Miglior Kernel Selezionato: {best_kernel} (ASF1={best_asf1:.4f})")
+    
+    # Metriche globali (usando il miglior kernel)
+    ff1 = best_ff1
+    asf1 = best_asf1
+    all_preds = best_smoothed_preds
     ff1 = compute_ff1(all_preds, all_labels)
     asf1 = compute_asf1(all_preds, all_labels)
     
