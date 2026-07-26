@@ -71,7 +71,56 @@ Per ciascun POI il dataset fornisce annotazioni sotto forma di bounding box in f
 La natura dei contenuti egocentrici comporta sfide significative quali motion blur, occlusioni parziali, variazioni estreme di illuminazione e ambiguità semantica tra POI visivamente simili.
 
 % ================================================================
-% CAPITOLO 3 — TASK 2: POINT OF INTEREST RECOGNITION (dettagliato)
+% CAPITOLO 3 — TASK 1: ROOM-BASED LOCALIZATION
+% ================================================================
+\chapter{Task 1 --- Room-based Localization}
+
+\section{Definizione del Problema}
+Il Task 1, denominato \emph{Room-based Localization}, consiste nell'identificare in quale stanza si trovi il visitatore, frame per frame, analizzando il video egocentrico. Poiché il video cattura l'esplorazione sequenziale degli ambienti, questo task è a tutti gli effetti un problema di \textbf{video understanding} e analisi di serie temporali, dove la coerenza temporale delle predizioni riveste un ruolo cruciale.
+
+\section{La Baseline del Paper Originale}
+Gli autori di EGO-CH affrontano il Task 1 estraendo caratteristiche visive (feature) con \textbf{VGG19} pre-addestrato su ImageNet, per poi classificarle frame per frame utilizzando l'algoritmo K-Nearest Neighbors (KNN). Per correggere l'incoerenza temporale delle predizioni (effetto \emph{flickering}), applicano un modello di Markov Nascosto (Hidden Markov Model, HMM) come step di post-processing.
+Sul dataset del Palazzo Bellomo, la baseline del paper ottiene:
+\begin{itemize}
+    \item \textbf{FF1 (Frame-Level F1-Score)}: 0.8100
+    \item \textbf{ASF1 (Action Segment F1-Score)}: 0.5900
+\end{itemize}
+
+\section{La Nostra Proposta: DINOv2 e Mamba}
+In questo progetto, abbiamo sostituito l'architettura classica con modelli allo stato dell'arte. Come estrattore di feature abbiamo utilizzato \textbf{DINOv2}~\cite{dinov2}, capace di catturare informazioni semantiche ricchissime senza supervisione. Per l'elaborazione temporale delle sequenze, abbiamo adottato l'architettura \textbf{Mamba}~\cite{mamba}, un modello basato sugli \emph{State Space Models} (SSM) che offre prestazioni paragonabili ai Transformer ma con complessità lineare rispetto alla lunghezza della sequenza.
+
+Il nostro processo di ottimizzazione ha attraversato tre iterazioni principali (V1, V2 e V3), affrontando progressivamente le sfide poste dal dataset, in particolare lo sbilanciamento delle classi (alcune stanze compaiono per pochi secondi, altre per svariati minuti).
+
+\subsection{Modello V1: Mamba Base}
+Nel primo esperimento abbiamo addestrato l'architettura Mamba pura, ottimizzata tramite una \texttt{CrossEntropyLoss} standard. 
+\begin{itemize}
+    \item \textbf{Risultato}: La rete ha ottenuto un FF1 pari a $\sim$0.8098 (in linea col paper) ma un ASF1 di soli $\sim$0.4079 (drasticamente inferiore).
+    \item \textbf{Criticità}: A causa del grave sbilanciamento delle classi nel set di training, la loss non pesata portava il modello a ignorare del tutto gli ambienti meno frequenti, ottenendo 0\% di accuratezza su molte stanze. Inoltre, la pura inferenza per-frame ha causato un forte flickering, abbassando notevolmente l'ASF1.
+\end{itemize}
+
+\subsection{Modello V2: Weighted Loss e Label Smoothing}
+Per ovviare al problema dello sbilanciamento, abbiamo introdotto una \textbf{Weighted Loss}: la funzione \texttt{CrossEntropyLoss} è stata pesata inversamente rispetto alla frequenza dei frame per ogni classe. Inoltre, abbiamo applicato il \emph{Label Smoothing} (impostato a 0.1) per evitare un'eccessiva sicurezza del modello, mitigando l'overfitting. A valle della rete, abbiamo utilizzato un semplice Filtro Mediano (kernel ottimizzato a 501 frame) per stabilizzare temporalmente l'output.
+\begin{itemize}
+    \item \textbf{Risultati}: \textbf{FF1 = 0.8572} (+4.72\% sul paper) e \textbf{ASF1 = 0.6194} (+2.94\% sul paper).
+    \item \textbf{Conclusioni}: Obiettivo raggiunto e superato. La V2 ha ripristinato l'accuratezza sulle classi di minoranza e si è imposta come soluzione ideale per massimizzare la coerenza temporale (ASF1).
+\end{itemize}
+
+\subsection{Modello V3 Experimental: MS-TCN e MLP}
+Con l'intento di rimuovere la dipendenza dal post-processing manuale (il filtro mediano) ed estrarre la massima precisione possibile, abbiamo progettato un'evoluzione \emph{end-to-end}. La V3 introduce:
+\begin{itemize}
+    \item Un \textbf{Multi-Layer Perceptron (MLP)} in ingresso (Lineare $\rightarrow$ GELU $\rightarrow$ Lineare) per una proiezione più espressiva delle feature di DINOv2.
+    \item Una testa di classificazione basata su \textbf{Multi-Stage Temporal Convolutional Network (MS-TCN)} con convoluzioni dilatate (kernel 3, dilation 1, 2, 4, 8) in puro PyTorch, permettendo al modello di imparare nativamente lo smoothing guardando i frame adiacenti durante il training.
+\end{itemize}
+\begin{itemize}
+    \item \textbf{Risultati}: \textbf{FF1 = 0.8718} (+6.18\% sul paper) e \textbf{ASF1 = 0.5815}.
+    \item \textbf{Analisi del Trade-off}: La V3 ha raggiunto uno sbalorditivo FF1 vicino al 90\%, dimostrando una capacità superba di interpretare l'ambiente frame per frame (superando lo stato dell'arte). L'ASF1 è leggermente calato rispetto alla V2 poiché il campo recettivo della nostra MS-TCN a 4 layer (31 frame, circa 1 secondo) non era sufficientemente ampio da livellare transizioni lente (10-15 secondi), compito nel quale il filtro mediano da 501 frame eccelleva. 
+\end{itemize}
+
+\section{Discussione}
+I risultati conseguiti dimostrano l'inadeguatezza degli approcci statici (VGG19) per il task di Room Localization, evidenziando la forza delle architetture di sequence modeling come Mamba. La nostra ricerca ha prodotto due modelli complementari: la \textbf{V2} (il campione di stabilità temporale, con il miglior ASF1) e la \textbf{V3} (il campione di classificazione pura, con il miglior FF1 assoluto), fornendo un'analisi completa sul trade-off tra smoothing post-processing (filtri larghi) e smoothing neurale (convoluzioni temporali con campo recettivo limitato).
+
+% ================================================================
+% CAPITOLO 4 — TASK 2: POINT OF INTEREST RECOGNITION (dettagliato)
 % ================================================================
 \chapter{Task 2 --- Point of Interest Recognition}
 
@@ -409,6 +458,11 @@ G.~Jocher, A.~Chaurasia, J.~Qiu,
 M.~Oquab et al.,
 \textit{DINOv2: Learning Robust Visual Features without Supervision},
 Transactions on Machine Learning Research, 2024.
+
+\bibitem{mamba}
+A.~Gu, T.~Dao,
+\textit{Mamba: Linear-Time Sequence Modeling with Selective State Spaces},
+arXiv preprint arXiv:2312.00752, 2023.
 
 \end{thebibliography}
 
