@@ -244,14 +244,14 @@ Scegliere Palazzo Bellomo non ha però significato avere la strada spianata. La 
     \item \textbf{Duplicazione Intrinseca (Data Leakage)}: Questa è stata la problematica più subdola. Il dataset forniva sia video integrali dell'esplorazione delle stanze, sia brevi clip isolate relative a singole opere. Caricare l'intero pacchetto in addestramento avrebbe significato processare migliaia di frame duplicati (essendo le clip dei semplici ritagli dei video principali). L'addestramento ne sarebbe uscito viziato, producendo un forte \emph{overfitting}. Per risolvere la questione alla radice, abbiamo implementato un filtro dinamico all'interno del nostro \emph{DataLoader}, capace di riconoscere e scartare al volo le sotto-clip ridondanti dando priorità ai flussi \emph{room-level} aggregati.
 \end{itemize}
 
-\section{Estrazione delle features: L'Adozione di DINOv2}
+\section{Estrazione delle features: DINOv2}
 La baseline convoluzionale basata su VGG19 si concentra prevalentemente sul riconoscimento di texture o oggetti isolati, faticando a catturare la geometria e la profondità di un'intera stanza. Per compiere un vero salto di qualità, abbiamo deciso di rivoluzionare lo step di estrazione feature adottando \textbf{DINOv2}~\cite{dinov2}, un \emph{Vision Transformer} di ultima generazione sviluppato da Meta.
 
 Grazie all'apprendimento auto-supervisionato (Self-Supervised Learning) su milioni di immagini, DINOv2 non si limita a riconoscere cosa c'è nell'immagine, ma ne comprende il layout spaziale complessivo. Questa capacità di cogliere l'atmosfera globale dell'ambiente lo ha reso il candidato perfetto per il nostro scopo. Abbiamo utilizzato la variante \texttt{ViT-S/14}, che comprime ogni frame in un vettore semantico iper-denso di 384 dimensioni.
 
 Tuttavia, passare al setaccio milioni di frame ha imposto una rivisitazione dell'architettura software. I primi tentativi di estrazione in memoria saturavano quasi istantaneamente la RAM dei nodi del cluster, portando al crash dei processi (errore \emph{Out-Of-Memory}). Abbiamo quindi progettato una pipeline offline robusta, basata sullo svuotamento esplicito della memoria a intervalli regolari e su un sistema di checkpointing (\emph{resume}) tramite file sidecar. Questo ci ha permesso di elaborare i video in modo incrementale, mettendoci al riparo da eventuali preemption del cluster di calcolo.
 
-\section{Mamba: Modellazione Temporale a Complessità Lineare}
+\section{State Space Model Mamba}
 Ottenute le feature compresse da DINOv2, il tassello mancante era la modellazione dell'evoluzione temporale della visita. I tradizionali Transformer, sebbene potentissimi, soffrono di una complessità quadratica rispetto alla lunghezza della sequenza, rendendoli impraticabili per video di migliaia di frame.
 
 Abbiamo trovato la quadratura del cerchio nell'architettura \textbf{Mamba}~\cite{mamba}. Basato sugli State Space Models (SSM), Mamba offre un'espressività paragonabile ai Transformer nel catturare dipendenze a lungo raggio, ma scalando con una complessità strettamente lineare ($\mathcal{O}(N)$). Per scongiurare saturazioni della VRAM (considerando sequenze temporali che potevano superare i 3000 frame), abbiamo dimensionato la rete con grande attenzione: \emph{d\_model} a 256, 4 layer sequenziali, \emph{d\_state} a 16 e un Dropout del 20\%, addestrando con batch piccoli da 4 elementi.
@@ -265,7 +265,7 @@ Per correggere il tiro abbiamo sviluppato la versione \textbf{V2}. Abbiamo intro
 Ma la vera svolta sulla coerenza temporale l'abbiamo ottenuta ripensando il post-processing. Invece di tirare a indovinare un valore per il kernel del Filtro Mediano a valle della rete, abbiamo ingegnerizzato lo script di valutazione per eseguire una \emph{grid search} autonoma. Lo script ha scansionato ampiezze temporali da 1 fino a 3000 frame, determinando in modo analitico che un kernel da 501 frame (circa 16 secondi di esplorazione in tempo reale) massimizzava proprio la complessa metrica ASF1.
 Con questa configurazione, la V2 ha infranto la baseline: \textbf{FF1 a 0.8572} e \textbf{ASF1 a 0.6194}.
 
-\subsection{Verso un Approccio End-to-End (V3 Experimental)}
+\subsection{Approccio End-to-End (V3)}
 Spinti dalla curiosità di eliminare del tutto la dipendenza da un filtro mediano deterministico (un approccio manuale), abbiamo concepito un'ultima variante sperimentale, la \textbf{V3}. 
 In questa architettura abbiamo premesso a Mamba un \emph{Multi-Layer Perceptron (MLP)} per proiettare le feature di DINOv2 in uno spazio più ricco, e sostituito il post-processing con una testa basata su convoluzioni temporali dilatate (Multi-Stage Temporal Convolutional Network, \textbf{MS-TCN}). L'obiettivo era insegnare alla rete a eseguire lo "smoothing" autonomamente durante l'addestramento.
 
@@ -288,7 +288,7 @@ La Tabella~\ref{tab:task1_comparison} riassume il percorso evolutivo delle nostr
 Baseline (Paper) & VGG19 + K-NN + HMM post-processing & 0.8100 & 0.5900 \\
 Mamba V1 & Mamba puro (Loss Standard) & 0.8098 & 0.4079 \\
 \textbf{Mamba V2} & \textbf{DINOv2 + Weighted Loss + Dynamic Median Filter} & \textbf{0.8572} & \textbf{0.6194} \\
-Mamba V3 (Exp) & DINOv2 + MLP + MS-TCN (End-to-End) & \textbf{0.8718} & 0.5815 \\
+Mamba V3 & DINOv2 + MLP + MS-TCN (End-to-End) & \textbf{0.8718} & 0.5815 \\
 \bottomrule
 \end{tabular}%
 }
