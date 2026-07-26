@@ -36,14 +36,41 @@
 % Percorso delle immagini
 \graphicspath{{Scripts/Task2_Object_Recognition/runs/detect/}}
 
-\title{Progetto EGO-CH --- Deep Learning\\
-\large Relazione Finale}
-\author{Nome Cognome \and Nome Cognome \and Nome Cognome}
-\date{Anno Accademico 2025/2026}
-
 \begin{document}
 
-\maketitle
+\begin{titlepage}
+\centering
+{\bfseries \Large UNIVERSITÀ DEGLI STUDI DI CATANIA \par}
+\vspace{0.3cm}
+{\Large Corso di Laurea Magistrale in Informatica \par}
+\vspace{0.2cm}
+{\large \textbf{Progetto di Deep Learning 2} \par}
+\vspace{1.5cm}
+\rule{\linewidth}{0.6pt} \\[0.4cm]
+{\huge \bfseries Progetto EGO-CH --- Deep Learning \\[0.3cm] \Large Relazione Finale \par}
+\rule{\linewidth}{0.6pt} \\[1.5cm]
+
+\begin{minipage}{0.70\textwidth}
+\begin{flushleft} \large
+\emph{Autori:}\\[0.2cm]
+\begin{tabular}{@{} l l @{}}
+\textbf{Damiano Messina} & {\small (Task 1: Room Localization)} \\[0.15cm]
+\textbf{Claudio Nuncibello} & {\small (Task 2: POI Recognition)} \\[0.15cm]
+\textbf{Emanuele Barbagallo} & {\small (Task 3: Object Retrieval)}
+\end{tabular}
+\end{flushleft}
+\end{minipage}%
+\hfill
+\begin{minipage}{0.28\textwidth}
+\begin{flushright} \large
+\emph{Anno Accademico:}\\
+\textbf{2025/2026}
+\end{flushright}
+\end{minipage}
+
+\vfill
+\end{titlepage}
+
 \tableofcontents
 \newpage
 
@@ -91,6 +118,17 @@ La relazione è strutturata come segue:
     \item Il \textbf{Capitolo 4} analizza il \textbf{Task 2 (Point of Interest Recognition)}, illustrando l'approccio end-to-end con YOLOv8 nelle varianti Nano e X-Large.
     \item Il \textbf{Capitolo 5} presenta il \textbf{Task 3 (Object Retrieval)}, descrivendo il matching nello spazio latente di DINOv2 mediante Cosine Similarity e la risoluzione del \emph{Domain Shift}.
     \item Il \textbf{Capitolo 6} trae le \textbf{Conclusioni} finali e sintetizza i contributi complessivi del lavoro.
+\end{itemize}
+
+\section{Organizzazione del Lavoro e Contributi degli Autori}
+
+Durante lo sviluppo del progetto abbiamo lavorato in costante sinergia, confrontandoci regolarmente e collaborando su ogni fase del lavoro, dalla scelta delle architetture alla stesura del codice e della relazione.
+
+Allo stesso tempo, per organizzare al meglio le attività e approfondire ogni aspetto del benchmark, ciascuno di noi si è focalizzato con maggiore attenzione sulla supervisione e sullo sviluppo di un task specifico:
+\begin{itemize}
+    \item \textbf{Damiano Messina}: si è occupato in prima persona del \textbf{Task 1 (Room-based Localization)};
+    \item \textbf{Claudio Nuncibello}: ha curato direttamente il \textbf{Task 2 (Point of Interest Recognition)};
+    \item \textbf{Emanuele Barbagallo}: si è concentrato sullo sviluppo del \textbf{Task 3 (Object Retrieval)}.
 \end{itemize}
 
 
@@ -242,6 +280,7 @@ La Tabella~\ref{tab:task1_comparison} riassume il percorso evolutivo delle nostr
 \centering
 \caption{Confronto riassuntivo delle performance (Palazzo Bellomo) tra la baseline del paper e le tre iterazioni architetturali proposte nel nostro studio.}
 \label{tab:task1_comparison}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{llcc}
 \toprule
 \textbf{Modello} & \textbf{Caratteristiche Chiave} & \textbf{FF1} & \textbf{ASF1} \\
@@ -251,7 +290,8 @@ Mamba V1 & Mamba puro (Loss Standard) & 0.8098 & 0.4079 \\
 \textbf{Mamba V2} & \textbf{DINOv2 + Weighted Loss + Dynamic Median Filter} & \textbf{0.8572} & \textbf{0.6194} \\
 Mamba V3 (Exp) & DINOv2 + MLP + MS-TCN (End-to-End) & \textbf{0.8718} & 0.5815 \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 
