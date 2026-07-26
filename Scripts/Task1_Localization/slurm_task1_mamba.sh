@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=task1_mamba
-#SBATCH --output=experiments/task1_bellomo/logs/mamba_%j.out
-#SBATCH --error=experiments/task1_bellomo/logs/mamba_%j.err
+#SBATCH --output=Scripts/Task1_Localization/experiments/task1_bellomo/logs/mamba_%j.out
+#SBATCH --error=Scripts/Task1_Localization/experiments/task1_bellomo/logs/mamba_%j.err
 #SBATCH --account=dl-course-q2
 #SBATCH --partition=dl-course-q2
 #SBATCH --qos=gpu-xlarge
