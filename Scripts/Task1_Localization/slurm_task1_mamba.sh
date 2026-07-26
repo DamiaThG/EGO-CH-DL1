@@ -50,11 +50,11 @@ apptainer exec --nv \
         --features_dir "$FEATURES_DIR" \
         --val_features_dir "$VAL_DIR" \
         --model mamba \
-        --d_model 512 \
-        --num_layers 6 \
-        --d_state 32 \
+        --d_model 256 \
+        --num_layers 4 \
+        --d_state 16 \
         --dropout 0.2 \
-        --batch_size 8 \
+        --batch_size 4 \
         --epochs 100 \
         --lr 3e-4 \
         --weight_decay 1e-2 \
