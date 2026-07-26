@@ -163,9 +163,31 @@ def get_dataloaders(
     """
     features_dir = Path(features_dir)
 
-    all_files = sorted([f.name for f in features_dir.glob("*.pt")])
-    if len(all_files) == 0:
+    all_files_raw = sorted([f.name for f in features_dir.glob("*.pt")])
+    if len(all_files_raw) == 0:
         raise FileNotFoundError(f"Nessun file .pt in {features_dir}")
+
+    # ── Deduplication filter ──────────────────────────────────────────────
+    # Nel dataset Bellomo esistono due tipi di file:
+    #   1) Room-level:  "8_Sala8_features.pt"          (intera stanza, tutti i frame)
+    #   2) Video-clip:  "8.1_Sala8_Artwork.mp4_frames_features.pt"  (sotto-sequenza)
+    # I file room-level già contengono i frame dei video-clip della stessa stanza,
+    # quindi usarli insieme creerebbe duplicati (overfitting).
+    # Strategia: se esistono file room-level, usa SOLO quelli;
+    #            altrimenti usa tutti i file (fallback per dataset senza aggregazione).
+    room_level_files = [f for f in all_files_raw if f.endswith("_features.pt") and ".mp4" not in f]
+    clip_only_files  = [f for f in all_files_raw if ".mp4" in f]
+
+    if room_level_files:
+        all_files = room_level_files
+        if clip_only_files:
+            print(
+                f"[get_dataloaders] Deduplication: trovati {len(room_level_files)} file room-level e "
+                f"{len(clip_only_files)} video-clip. Uso SOLO i file room-level per evitare duplicati."
+            )
+    else:
+        all_files = all_files_raw
+        print(f"[get_dataloaders] Nessun file room-level trovato, uso tutti i {len(all_files)} file .pt.")
 
     # Modalità a due cartelle separate
     if val_features_dir is not None:
@@ -182,20 +204,20 @@ def get_dataloaders(
     # Modalità a singola cartella (fallback)
     else:
         # Cerca esplicitamente un file di validazione
-    val_candidate = next((f for f in all_files if "validation" in f.lower()), None)
-    
-    if val_candidate is not None:
-        print(f"[get_dataloaders] Trovato file di validazione esplicito: {val_candidate}")
-        val_files = [val_candidate]
-        train_files = [f for f in all_files if f != val_candidate]
-    else:
-        # Fallback allo split random
-        rng = random.Random(seed)
-        shuffled = all_files.copy()
-        rng.shuffle(shuffled)
-        n_val = max(1, int(len(shuffled) * val_split))
-        val_files = shuffled[:n_val]
-        train_files = shuffled[n_val:]
+        val_candidate = next((f for f in all_files if "validation" in f.lower()), None)
+
+        if val_candidate is not None:
+            print(f"[get_dataloaders] Trovato file di validazione esplicito: {val_candidate}")
+            val_files = [val_candidate]
+            train_files = [f for f in all_files if f != val_candidate]
+        else:
+            # Fallback allo split random
+            rng = random.Random(seed)
+            shuffled = all_files.copy()
+            rng.shuffle(shuffled)
+            n_val = max(1, int(len(shuffled) * val_split))
+            val_files = shuffled[:n_val]
+            train_files = shuffled[n_val:]
 
         print(
             f"[get_dataloaders] Split da singola cartella → Train: {len(train_files)} | Val: {len(val_files)} "

@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=task1_mamba
-#SBATCH --output=experiments/task1_%x/logs/mamba_%j.out
-#SBATCH --error=experiments/task1_%x/logs/mamba_%j.err
+#SBATCH --output=experiments/task1_bellomo/logs/mamba_%j.out
+#SBATCH --error=experiments/task1_bellomo/logs/mamba_%j.err
 #SBATCH --account=dl-course-q2
 #SBATCH --partition=dl-course-q2
 #SBATCH --qos=gpu-xlarge
@@ -12,41 +12,35 @@
 #SBATCH --mem=32G
 #SBATCH --time=12:00:00
 
-# ── Uso ────────────────────────────────────────────────────────────────────────
-# Bellomo:
-#   sbatch --export=DATASET=bellomo Scripts/Task1_Localization/slurm_task1_mamba.sh
+# ── Iperparametri Mamba (Task 1 — Bellomo only) ────────────────────────────────
 #
-# Monastero:
-#   sbatch --export=DATASET=monastero Scripts/Task1_Localization/slurm_task1_mamba.sh
+# Analisi OOM (22 GB VRAM disponibili, bf16-mixed):
+#   Sequenze Bellomo: min=779, max=3099, media=1724 frame
+#   Worst case batch_size=8: tensor [8, 3099, 512] = ~25.5 MB per layer
+#   6 layer × ~25.5 MB = ~153 MB attivazioni — ben dentro i 22 GB.
+#   → batch_size=8 è SICURO. Nessun rischio OOM.
+#
+# Nota sul dataset:
+#   get_dataloaders() filtra automaticamente i file video-clip (.mp4_frames_features.pt)
+#   quando esistono file room-level (_features.pt), evitando duplicati nel training.
+#   Bellomo Train ha 22 stanze → 22 sequenze room-level effettive.
 # ──────────────────────────────────────────────────────────────────────────────
 
-# Default a bellomo se non specificato
-DATASET=${DATASET:-bellomo}
-
-if [ "$DATASET" = "bellomo" ]; then
-    FEATURES_DIR="data/Task1_Features_Original/Bellomo_Train"
-    VAL_DIR="data/Task1_Features_Original/Bellomo_Val"
-    OUTPUT_DIR="experiments/task1_bellomo"
-    RUN_NAME="task1_mamba_bellomo_v1"
-elif [ "$DATASET" = "monastero" ]; then
-    FEATURES_DIR="data/Task1_Features_Original/Monastero_Train"
-    VAL_DIR="data/Task1_Features_Original/Monastero_Val"
-    OUTPUT_DIR="experiments/task1_monastero"
-    RUN_NAME="task1_mamba_monastero_v1"
-else
-    echo "ERRORE: DATASET deve essere 'bellomo' o 'monastero'. Ricevuto: $DATASET"
-    exit 1
-fi
+FEATURES_DIR="data/Task1_Features_Original/Bellomo_Train"
+VAL_DIR="data/Task1_Features_Original/Bellomo_Val"
+OUTPUT_DIR="experiments/task1_bellomo"
+RUN_NAME="task1_mamba_bellomo_v1"
 
 mkdir -p "$OUTPUT_DIR/logs"
 mkdir -p "$OUTPUT_DIR/checkpoints"
 
-echo "======================================"
-echo "Task 1 — Mamba Training: $DATASET"
+echo "======================================================"
+echo "Task 1 — Mamba Training: Bellomo"
 echo "  features_dir : $FEATURES_DIR"
 echo "  val_dir      : $VAL_DIR"
 echo "  output_dir   : $OUTPUT_DIR"
-echo "======================================"
+echo "  run_name     : $RUN_NAME"
+echo "======================================================"
 
 apptainer exec --nv \
     --bind $(pwd):/workspace \
@@ -70,6 +64,6 @@ apptainer exec --nv \
         --output_dir "$OUTPUT_DIR" \
         --run_name "$RUN_NAME"
 
-echo "======================================"
-echo "Training completato: $DATASET"
-echo "======================================"
+echo "======================================================"
+echo "Training completato: Bellomo"
+echo "======================================================"
