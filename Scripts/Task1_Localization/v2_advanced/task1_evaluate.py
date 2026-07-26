@@ -1,3 +1,4 @@
+# Valuta le performance del modello addestrato e calcola FF1 e ASF1
 import argparse
 import json
 import torch

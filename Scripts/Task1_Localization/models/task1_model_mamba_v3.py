@@ -1,3 +1,4 @@
+# Evoluzione del modello Mamba con testa convoluzionale MS-TCN
 import torch
 import torch.nn as nn
 try:

@@ -1,3 +1,4 @@
+# Script di addestramento per la Room Localization (Task 1)
 import os
 import json
 import argparse

@@ -1,3 +1,4 @@
+# Estrae le feature spaziali dai video usando DINOv2 e le salva su disco
 import os
 import re
 import json

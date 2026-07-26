@@ -1,3 +1,4 @@
+# Definizione dell'architettura Mamba per la classificazione sequenziale
 import torch
 import torch.nn as nn
 try:

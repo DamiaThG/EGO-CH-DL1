@@ -1,3 +1,4 @@
+# Gestione del dataset e dataloader per caricare le feature DINOv2
 import json
 import random
 from pathlib import Path

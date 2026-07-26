@@ -1,3 +1,4 @@
+# Implementazione delle metriche custom (Frame-level F1 e Action Segment F1)
 import numpy as np
 from sklearn.metrics import f1_score
 
