@@ -1,44 +1,39 @@
-# OS X
+# System & OS Files
 .DS_Store
 .AppleDouble
 .LSOverride
-
-# Icon must end with two carriage returns
-Icon
-
-
-# Thumbnails
 ._*
-
-# Files that might be created on a Volume
 .DocumentRevisions-V100
 .TemporaryItems
 .Trashes
 .VolumeIcon.icns
 .com.apple.timemachine.donotpresent
+Thumbs.db
 
+# Python & Environment Artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+env/
+venv/
 
-# Datasets
-Dataset_Monastero
-Dataset_Monastero_Small
+# Datasets, Weights & Features
+data/
+weights/
+*_Features/
+*.pt
+*.pth
 
-data
+# Checkpoints, Logs & Experiment Outputs
+checkpoints/
+*.ckpt
+wandb/
+logs/
+*.err
 
-weights
-
-Scripts/Task1_Localization/Bellomo_Features
-Scripts/Task1_Localization/Monastero_Features
-Scripts/Task3_Object_Retrieval/Bellomo_Features
-Scripts/Task3_Object_Retrieval/Monastero_Features
-
-yolov8n.pt
-yolov8x.pt
-
-Scripts\Task2_Object_Recognition\runs\detect\task2_poi\weights
-Scripts\Task2_Object_Recognition\runs\detect\task2_poi_xlarge\weights
-logs
-
-# LaTeX build artifacts (keep only .tex and .pdf)
+# LaTeX Build Artifacts (Keep only .tex and .pdf)
 *.aux
 *.log
 *.toc

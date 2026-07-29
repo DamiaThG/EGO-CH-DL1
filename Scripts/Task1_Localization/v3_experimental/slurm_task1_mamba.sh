@@ -12,19 +12,8 @@
 #SBATCH --mem=32G
 #SBATCH --time=12:00:00
 
-# ── Iperparametri Mamba (Task 1 — Bellomo only) ────────────────────────────────
-#
-# Analisi OOM (22 GB VRAM disponibili, bf16-mixed):
-#   Sequenze Bellomo: min=779, max=3099, media=1724 frame
-#   Worst case batch_size=8: tensor [8, 3099, 512] = ~25.5 MB per layer
-#   6 layer × ~25.5 MB = ~153 MB attivazioni — ben dentro i 22 GB.
-#   → batch_size=8 è SICURO. Nessun rischio OOM.
-#
-# Nota sul dataset:
-#   get_dataloaders() filtra automaticamente i file video-clip (.mp4_frames_features.pt)
-#   quando esistono file room-level (_features.pt), evitando duplicati nel training.
-#   Bellomo Train ha 22 stanze → 22 sequenze room-level effettive.
-# ──────────────────────────────────────────────────────────────────────────────
+# Addestramento Mamba v3 (Bellomo)
+
 
 export WANDB_MODE=offline
 

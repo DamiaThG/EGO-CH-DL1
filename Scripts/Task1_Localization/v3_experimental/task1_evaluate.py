@@ -91,8 +91,8 @@ def evaluate(checkpoint_path, test_dir, dataset='bellomo', save_path=None):
     else:
         print(f"\n[!] Dataset '{dataset}' non riconosciuto. Valori disponibili: {list(PAPER_BASELINES.keys())}")
     results_dict = {'checkpoint': checkpoint_path, 'dataset': dataset, 'overall_ff1': ff1, 'overall_asf1': asf1, 'per_room_ff1': {id_to_name.get(class_id, f'Class_{class_id}'): f1 for class_id, f1 in enumerate(per_class_f1)}, 'post_processing': {'type': 'median_filter', 'kernel_size': 101}}
-    if args.save_path:
-        out_path = Path(args.save_path)
+    if save_path:
+        out_path = Path(save_path)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with open(out_path, 'w') as f:
             json.dump(results_dict, f, indent=4)

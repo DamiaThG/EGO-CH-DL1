@@ -7,22 +7,20 @@ def train_yolo(data_yaml, weights='yolov8n.pt', epochs=100, batch=16, name='task
     print(f"Dataset YAML: {data_yaml}")
     print(f"Pesi Iniziali: {weights}")
     
-    # 1. Inizializza il modello usando i pesi pre-addestrati caricati in locale
-    # Questo evita che YOLO cerchi di scaricarli da internet
+    # Caricamento del modello
     model = YOLO(weights)
     
-    # 2. Avvia l'addestramento
-    # YOLO salva automaticamente risultati, metriche e grafici in 'runs/detect/{name}'
+    # Addestramento
     results = model.train(
         data=data_yaml,
         epochs=epochs,
         batch=batch,
         name=name,
-        device=0,      # Usa la prima GPU disponibile
-        plots=True,    # Forza la generazione dei grafici per la relazione
-        save=True,     # Salva i pesi migliori (best.pt)
-        exist_ok=True, # Sovrascrive la cartella se esiste già
-        resume=resume  # Riprende dai checkpoint se abilitato
+        device=0,
+        plots=True,
+        save=True,
+        exist_ok=True,
+        resume=resume
     )
     
     print("\nAddestramento completato con successo!")
