@@ -20,7 +20,6 @@ EGO-CH-DL1/
 │   │   └── v3_experimental/      # Esperimenti e configurazioni v3
 │   ├── Task2_Object_Recognition/ # Codice per l'Object/POI Recognition (YOLOv8)
 │   └── Task3_Object_Retrieval/   # Codice per l'Object Retrieval (Feature extraction & similarity)
-├── relazione.tex                 # Relazione finale in formato LaTeX
 └── relazione.pdf                 # PDF compilato della relazione
 ```
 
@@ -76,4 +75,4 @@ bash Scripts/Task3_Object_Retrieval/run_task3.sh
 ---
 
 ## Relazione
-La relazione completa che illustra l'architettura dei modelli, i dettagli sperimentali e i risultati ottenuti è fornita in `relazione.pdf` (sorgente `relazione.tex`).
+La relazione completa che illustra l'architettura dei modelli, i dettagli sperimentali e i risultati ottenuti è fornita in `relazione.pdf`.

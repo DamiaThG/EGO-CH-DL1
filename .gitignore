@@ -33,7 +33,8 @@ wandb/
 logs/
 *.err
 
-# LaTeX Build Artifacts (Keep only .tex and .pdf)
+# LaTeX Files & Build Artifacts (Keep only .pdf)
+*.tex
 *.aux
 *.log
 *.toc
